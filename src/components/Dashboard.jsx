@@ -1,3 +1,4 @@
+import React, { useState } from 'react';
 import { Plus, Folder, DollarSign, TrendingUp, Shirt, ChevronRight, Home, Building2, Trash2, Wallet } from 'lucide-react';
 
 export default function Dashboard({ schools, currentPath, onNavigate, onAddFolder, onDeleteFolder, onUpdateSchool }) {
@@ -12,9 +13,7 @@ export default function Dashboard({ schools, currentPath, onNavigate, onAddFolde
     // Calculate Stats based on current view
     const itemsToStats = currentLevel === 'root' ? allFranchises : (parentSchool?.franchises || []);
 
-    const totalRevenue = itemsToStats.reduce((acc, f) => acc + (parseFloat(f.financials?.total_value) || 0), 0);
-    const totalCost = itemsToStats.reduce((acc, f) => acc + (parseFloat(f.financials?.production_cost) || 0), 0);
-    const totalProfit = totalRevenue - totalCost;
+
 
     const calculateTotalItems = (inventory) => {
         if (!inventory) return 0;
