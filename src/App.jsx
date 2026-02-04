@@ -123,6 +123,26 @@ export default function App() {
         }
     };
 
+    const handleUpdateSchool = async (schoolId, financials) => {
+        try {
+            if (!supabase) {
+                alert("Configure as chaves do Supabase para salvar.");
+                return;
+            }
+
+            const { error } = await supabase
+                .from('schools')
+                .update({ financials })
+                .eq('id', schoolId);
+
+            if (error) throw error;
+            fetchSchools();
+        } catch (err) {
+            console.error("Error updating school:", err);
+            alert("Erro ao atualizar escola: " + err.message);
+        }
+    };
+
     const handleDelete = async (id) => {
         if (!window.confirm("Tem certeza? Essa ação não pode ser desfeita.")) return;
 
