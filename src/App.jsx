@@ -202,6 +202,7 @@ export default function App() {
             onNavigate={handleNavigate}
             onAddFolder={handleAddFolder}
             onDeleteFolder={handleDelete}
+            onUpdateSchool={handleUpdateSchool}
         />;
     }
 
@@ -213,6 +214,7 @@ export default function App() {
             onNavigate={handleNavigate}
             onAddFolder={handleAddFolder}
             onDeleteFolder={handleDelete}
+            onUpdateSchool={handleUpdateSchool}
         />;
     }
 
