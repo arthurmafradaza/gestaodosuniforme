@@ -26,23 +26,51 @@ export default function Dashboard({ schools, currentPath, onNavigate, onAddFolde
 
     const totalItemsCount = itemsToStats.reduce((acc, f) => acc + calculateTotalItems(f.inventory), 0);
 
-    // School Financial Override Logic
-    const schoolFinancials = parentSchool?.financials || {};
-    const schoolRevenueOverride = parseFloat(schoolFinancials.total_value || 0);
-    const schoolCostOverride = parseFloat(schoolFinancials.production_cost || 0);
+    // Helper to calculate financials for a single school (handling overrides)
+    const getSchoolFinancials = (school) => {
+        if (!school) return { revenue: 0, cost: 0, profit: 0, isOverride: false };
 
-    // If we are at school level AND overrides are set (greater than 0), use them. Otherwise default to sum.
-    const isSchoolOverride = currentLevel === 'school' && (schoolRevenueOverride > 0 || schoolCostOverride > 0);
+        const schoolFranchises = school.franchises || [];
+        const franchiseRevenue = schoolFranchises.reduce((acc, f) => acc + (parseFloat(f.financials?.total_value) || 0), 0);
+        const franchiseCost = schoolFranchises.reduce((acc, f) => acc + (parseFloat(f.financials?.production_cost) || 0), 0);
 
-    const totalRevenue = isSchoolOverride
-        ? schoolRevenueOverride
-        : itemsToStats.reduce((acc, f) => acc + (parseFloat(f.financials?.total_value) || 0), 0);
+        const schoolRevenueOverride = parseFloat(school.financials?.total_value || 0);
+        const schoolCostOverride = parseFloat(school.financials?.production_cost || 0);
 
-    const totalCost = isSchoolOverride
-        ? schoolCostOverride
-        : itemsToStats.reduce((acc, f) => acc + (parseFloat(f.financials?.production_cost) || 0), 0);
+        // Override logic: If override values exist (> 0), use them.
+        const hasOverride = schoolRevenueOverride > 0 || schoolCostOverride > 0;
 
-    const totalProfit = totalRevenue - totalCost;
+        const revenue = hasOverride ? schoolRevenueOverride : franchiseRevenue;
+        const cost = hasOverride ? schoolCostOverride : franchiseCost;
+
+        return {
+            revenue,
+            cost,
+            profit: revenue - cost,
+            isOverride: hasOverride
+        };
+    };
+
+    let totalRevenue = 0;
+    let totalCost = 0;
+    let totalProfit = 0;
+    let isSchoolOverride = false;
+
+    if (currentLevel === 'root') {
+        schools.forEach(school => {
+            const stats = getSchoolFinancials(school);
+            totalRevenue += stats.revenue;
+            totalCost += stats.cost;
+        });
+        totalProfit = totalRevenue - totalCost;
+    } else {
+        // Single School View
+        const stats = getSchoolFinancials(parentSchool);
+        totalRevenue = stats.revenue;
+        totalCost = stats.cost;
+        totalProfit = stats.profit;
+        isSchoolOverride = stats.isOverride;
+    }
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [newName, setNewName] = useState('');

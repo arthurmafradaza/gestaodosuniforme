@@ -144,6 +144,65 @@ export default function SchoolEditor({ school, franchise, onSave, onBack, onDele
         return Object.values(sizes).reduce((acc, qty) => acc + (parseInt(qty) || 0), 0);
     };
 
+    const [showReport, setShowReport] = useState(false);
+    const [reportText, setReportText] = useState('');
+
+    const generateReport = () => {
+        let text = `PEDIDO UNIFORME - ${formData.name.toUpperCase()}\n\n`;
+
+        // Helper to format a block
+        const formatBlock = (productName, colorField) => {
+            const sizes = formData.inventory[productName] || {};
+            // Filter out 0 quantities
+            const entries = Object.entries(sizes).filter(([_, qty]) => parseInt(qty) > 0);
+
+            if (entries.length === 0) return '';
+
+            // Sort sizes
+            const sortedEntries = entries.sort((a, b) => {
+                const numA = parseInt(a[0]);
+                const numB = parseInt(b[0]);
+                if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+                return a[0].localeCompare(b[0]);
+            });
+
+            // Get color from financials if specified (Camisetas, Bermudas, Shorts Saia)
+            let color = '';
+            if (colorField && formData.financials[colorField]) {
+                color = formData.financials[colorField].toUpperCase();
+            }
+
+            let block = `${productName.toUpperCase()}`;
+            if (color) block += ` ${color}`;
+            block += '\n\n';
+
+            sortedEntries.forEach(([size, qty]) => {
+                block += `TAM ${size}: ${qty}\n`;
+            });
+
+            return block + '\n';
+        };
+
+        // Define which products map to which color fields
+        // If a product isn't in this map, it won't have a specific color line appended unless we change logic,
+        // but for now we follow the specific request.
+        // We iterate over known product types to enforce order, or just iterate existing keys?
+        // Let's iterate over PRODUCT_OPTIONS to keep a nice order.
+
+        PRODUCT_OPTIONS.forEach(prod => {
+            let colorField = null;
+            if (prod === 'Camisetas') colorField = 'tshirt_color';
+            if (prod === 'Bermudas') colorField = 'shorts_color';
+            if (prod === 'Shorts Saia') colorField = 'skort_color';
+
+            const block = formatBlock(prod, colorField);
+            if (block) text += block;
+        });
+
+        setReportText(text);
+        setShowReport(true);
+    };
+
     const currentProducts = Object.keys(formData.inventory);
     const totalItems = currentProducts.reduce((acc, prod) => acc + calculateProductTotal(prod), 0);
 
@@ -161,6 +220,9 @@ export default function SchoolEditor({ school, franchise, onSave, onBack, onDele
                 </div>
 
                 <div style={{ display: 'flex', gap: '1rem' }}>
+                    <button className="btn btn-secondary" onClick={generateReport}>
+                        📄 Gerar Relatório
+                    </button>
                     {franchise.id && (
                         <button className="btn btn-secondary" style={{ color: '#ef4444', borderColor: '#fee2e2' }} onClick={() => onDelete(franchise.id)}>
                             <Trash2 size={18} /> Excluir Unidade
@@ -172,6 +234,45 @@ export default function SchoolEditor({ school, franchise, onSave, onBack, onDele
                 </div>
             </div>
 
+            {showReport && (
+                <div className="modal-overlay" onClick={() => setShowReport(false)} style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 999
+                }}>
+                    <div className="modal-content" onClick={e => e.stopPropagation()} style={{
+                        background: 'white', padding: '2rem', borderRadius: '12px', width: '500px', maxWidth: '90%',
+                        display: 'flex', flexDirection: 'column', gap: '1rem'
+                    }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <h3 style={{ margin: 0 }}>Relatório de Pedido</h3>
+                            <button onClick={() => setShowReport(false)} style={{ border: 'none', background: 'none', cursor: 'pointer' }}>
+                                <X size={24} />
+                            </button>
+                        </div>
+
+                        <textarea
+                            readOnly
+                            value={reportText}
+                            style={{
+                                width: '100%', height: '300px', padding: '1rem',
+                                fontFamily: 'monospace', fontSize: '0.9rem',
+                                border: '1px solid #e2e8f0', borderRadius: '8px',
+                                resize: 'none'
+                            }}
+                        />
+
+                        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                            <button className="btn" onClick={() => {
+                                navigator.clipboard.writeText(reportText);
+                                alert("Copiado para a área de transferência!");
+                            }}>
+                                Copiar Texto
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <form onSubmit={handleSubmit}>
                 <div style={{ marginBottom: '2rem' }}>
                     <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>NOME DA UNIDADE / FRANQUIA</label>
@@ -182,6 +283,57 @@ export default function SchoolEditor({ school, franchise, onSave, onBack, onDele
                         value={formData.name || ''}
                         onChange={handleNameChange}
                     />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '2rem' }}>
+                    <div>
+                        <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>COR DA CAMISETA</label>
+                        <input
+                            className="input"
+                            style={{ fontSize: '1rem' }}
+                            value={formData.financials.tshirt_color || ''}
+                            onChange={(e) => {
+                                setFormData(prev => ({
+                                    ...prev,
+                                    financials: { ...prev.financials, tshirt_color: e.target.value }
+                                }));
+                                setIsDirty(true);
+                            }}
+                            placeholder="Ex: Branca"
+                        />
+                    </div>
+                    <div>
+                        <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>COR DAS BERMUDAS</label>
+                        <input
+                            className="input"
+                            style={{ fontSize: '1rem' }}
+                            value={formData.financials.shorts_color || ''}
+                            onChange={(e) => {
+                                setFormData(prev => ({
+                                    ...prev,
+                                    financials: { ...prev.financials, shorts_color: e.target.value }
+                                }));
+                                setIsDirty(true);
+                            }}
+                            placeholder="Ex: Azul Marinho"
+                        />
+                    </div>
+                    <div>
+                        <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>COR DO SHORTS SAIA</label>
+                        <input
+                            className="input"
+                            style={{ fontSize: '1rem' }}
+                            value={formData.financials.skort_color || ''}
+                            onChange={(e) => {
+                                setFormData(prev => ({
+                                    ...prev,
+                                    financials: { ...prev.financials, skort_color: e.target.value }
+                                }));
+                                setIsDirty(true);
+                            }}
+                            placeholder="Ex: Azul Marinho"
+                        />
+                    </div>
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '2rem' }}>
