@@ -1,7 +1,111 @@
-import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Save, Trash2, Calculator, Edit2, Check, X } from 'lucide-react';
+import React, { useState, useEffect, memo } from 'react';
+import { ArrowLeft, Save, Trash2, Edit2, Check, X, FileText, Shirt, DollarSign } from 'lucide-react';
 
 const PRODUCT_OPTIONS = ['Camisetas', 'Bermudas', 'Shorts Saia', 'Moletom', 'Calça'];
+
+// Optimized Product Row Component
+const ProductRow = memo(({ product, sizes, onRemove, onEditStart, editingItem, editValue, setEditValue, onEditSave, onEditCancel }) => {
+    // Sort sizes logically
+    const sizeKeys = Object.keys(sizes).sort((a, b) => {
+        const numA = parseInt(a);
+        const numB = parseInt(b);
+        if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+        return a.localeCompare(b);
+    });
+
+    const totalQty = Object.values(sizes).reduce((acc, qty) => acc + (parseInt(qty) || 0), 0);
+
+    return (
+        <div className="card" style={{
+            marginBottom: '1rem',
+            background: 'rgba(30, 41, 59, 0.4)',
+            border: '1px solid rgba(255, 255, 255, 0.05)',
+            backdropFilter: 'blur(4px)'
+        }}>
+            <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '1rem',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+                paddingBottom: '0.75rem'
+            }}>
+                <span style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Shirt size={18} color="var(--primary)" />
+                    {product}
+                </span>
+                <span style={{ fontSize: '0.85rem', color: 'var(--primary-light)', fontWeight: 600, background: 'rgba(99, 102, 241, 0.1)', padding: '4px 10px', borderRadius: '12px' }}>
+                    Total: {totalQty}
+                </span>
+            </div>
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
+                {sizeKeys.map(size => {
+                    const isEditing = editingItem?.product === product && editingItem?.size === size;
+
+                    return (
+                        <div key={size} style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            background: 'rgba(15, 23, 42, 0.6)',
+                            padding: '6px 12px',
+                            borderRadius: '8px',
+                            border: '1px solid rgba(255, 255, 255, 0.05)',
+                            transition: 'all 0.2s'
+                        }}>
+                            <span style={{ fontWeight: 600, color: 'var(--text-muted)', fontSize: '0.9rem' }}>{size}:</span>
+
+                            {isEditing ? (
+                                <>
+                                    <input
+                                        autoFocus
+                                        className="input"
+                                        style={{ width: '50px', padding: '2px 6px', height: 'auto', fontSize: '0.9rem', textAlign: 'center' }}
+                                        value={editValue}
+                                        onChange={(e) => setEditValue(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') onEditSave();
+                                            if (e.key === 'Escape') onEditCancel();
+                                        }}
+                                    />
+                                    <button onClick={onEditSave} style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--success)', display: 'flex' }}>
+                                        <Check size={14} />
+                                    </button>
+                                    <button onClick={onEditCancel} style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--danger)', display: 'flex' }}>
+                                        <X size={14} />
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>{sizes[size]}</span>
+                                    <div style={{ display: 'flex', gap: '4px', marginLeft: '4px', opacity: 0.5 }} className="hover:opacity-100">
+                                        <button
+                                            type="button"
+                                            onClick={() => onEditStart(product, size, sizes[size])}
+                                            style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', padding: 2 }}
+                                            title="Editar"
+                                        >
+                                            <Edit2 size={12} />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => onRemove(product, size)}
+                                            style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--danger)', display: 'flex', padding: 2 }}
+                                            title="Remover"
+                                        >
+                                            <Trash2 size={12} />
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+});
 
 export default function SchoolEditor({ school, franchise, onSave, onBack, onDelete }) {
     const [formData, setFormData] = useState({
@@ -37,42 +141,45 @@ export default function SchoolEditor({ school, franchise, onSave, onBack, onDele
         if (isNaN(qty) || qty <= 0) return;
 
         // Ensure inventory structure exists
-        const currentInventory = formData.inventory || {};
-        const productInventory = currentInventory[newItemProduct] || {};
-        const currentQty = productInventory[newItemSize] || 0;
+        setFormData(prev => {
+            const currentInventory = prev.inventory || {};
+            const productInventory = currentInventory[newItemProduct] || {};
+            const currentQty = productInventory[newItemSize] || 0;
+            const newQty = currentQty + qty;
 
-        const newQty = currentQty + qty;
-
-        setFormData(prev => ({
-            ...prev,
-            inventory: {
-                ...prev.inventory,
-                [newItemProduct]: {
-                    ...(prev.inventory[newItemProduct] || {}),
-                    [newItemSize]: newQty
+            return {
+                ...prev,
+                inventory: {
+                    ...prev.inventory,
+                    [newItemProduct]: {
+                        ...(prev.inventory[newItemProduct] || {}),
+                        [newItemSize]: newQty
+                    }
                 }
-            }
-        }));
+            };
+        });
 
         setIsDirty(true);
         setNewItemSize('');
         setNewItemQty('');
-        // Keep product selected for faster entry of next size
     };
 
     const handleRemoveItem = (product, size) => {
-        const newInventory = { ...formData.inventory };
-        if (newInventory[product]) {
-            const newSizes = { ...newInventory[product] };
-            delete newSizes[size];
-            if (Object.keys(newSizes).length === 0) {
-                delete newInventory[product];
-            } else {
-                newInventory[product] = newSizes;
+        setFormData(prev => {
+            const newInventory = { ...prev.inventory };
+            if (newInventory[product]) {
+                const newSizes = { ...newInventory[product] };
+                delete newSizes[size];
+                if (Object.keys(newSizes).length === 0) {
+                    delete newInventory[product];
+                } else {
+                    newInventory[product] = newSizes;
+                }
+                return { ...prev, inventory: newInventory };
             }
-            setFormData(prev => ({ ...prev, inventory: newInventory }));
-            setIsDirty(true);
-        }
+            return prev;
+        });
+        setIsDirty(true);
     };
 
     const handleEditStart = (product, size, currentQty) => {
@@ -150,15 +257,12 @@ export default function SchoolEditor({ school, franchise, onSave, onBack, onDele
     const generateReport = () => {
         let text = `PEDIDO UNIFORME - ${formData.name.toUpperCase()}\n\n`;
 
-        // Helper to format a block
         const formatBlock = (productName, colorField) => {
             const sizes = formData.inventory[productName] || {};
-            // Filter out 0 quantities
             const entries = Object.entries(sizes).filter(([_, qty]) => parseInt(qty) > 0);
 
             if (entries.length === 0) return '';
 
-            // Sort sizes
             const sortedEntries = entries.sort((a, b) => {
                 const numA = parseInt(a[0]);
                 const numB = parseInt(b[0]);
@@ -166,7 +270,6 @@ export default function SchoolEditor({ school, franchise, onSave, onBack, onDele
                 return a[0].localeCompare(b[0]);
             });
 
-            // Get color from financials if specified (Camisetas, Bermudas, Shorts Saia)
             let color = '';
             if (colorField && formData.financials[colorField]) {
                 color = formData.financials[colorField].toUpperCase();
@@ -182,12 +285,6 @@ export default function SchoolEditor({ school, franchise, onSave, onBack, onDele
 
             return block + '\n';
         };
-
-        // Define which products map to which color fields
-        // If a product isn't in this map, it won't have a specific color line appended unless we change logic,
-        // but for now we follow the specific request.
-        // We iterate over known product types to enforce order, or just iterate existing keys?
-        // Let's iterate over PRODUCT_OPTIONS to keep a nice order.
 
         PRODUCT_OPTIONS.forEach(prod => {
             let colorField = null;
@@ -207,45 +304,45 @@ export default function SchoolEditor({ school, franchise, onSave, onBack, onDele
     const totalItems = currentProducts.reduce((acc, prod) => acc + calculateProductTotal(prod), 0);
 
     return (
-        <div className="card" style={{ maxWidth: '1000px', margin: '0 auto' }}>
-            <div className="header" style={{ marginBottom: '1.5rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '1rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    <button className="btn btn-secondary" onClick={onBack}>
-                        <ArrowLeft size={18} /> Voltar
+        <div style={{ maxWidth: '1200px', margin: '0 auto', paddingBottom: '3rem' }}>
+            {/* Header */}
+            <div className="card" style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(30, 41, 59, 0.7)', backdropFilter: 'blur(12px)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+                    <button className="btn btn-secondary" onClick={onBack} style={{ borderRadius: '50%', width: '40px', height: '40px', padding: 0, justifyContent: 'center' }}>
+                        <ArrowLeft size={20} />
                     </button>
                     <div>
-                        <span style={{ fontSize: '0.9rem', color: '#64748b' }}>{school.name} / </span>
-                        <span style={{ fontWeight: 600 }}>{formData.name}</span>
+                        <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Editando Unidade</div>
+                        <div style={{ fontSize: '1.25rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ color: 'var(--text-muted)' }}>{school.name} /</span>
+                            <span style={{ background: 'var(--gradient-primary)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                                {formData.name || 'Nova Unidade'}
+                            </span>
+                        </div>
                     </div>
                 </div>
 
                 <div style={{ display: 'flex', gap: '1rem' }}>
                     <button className="btn btn-secondary" onClick={generateReport}>
-                        📄 Gerar Relatório
+                        <FileText size={18} /> Relatório
                     </button>
                     {franchise.id && (
-                        <button className="btn btn-secondary" style={{ color: '#ef4444', borderColor: '#fee2e2' }} onClick={() => onDelete(franchise.id)}>
-                            <Trash2 size={18} /> Excluir Unidade
+                        <button className="btn btn-secondary" style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)', background: 'rgba(239, 68, 68, 0.1)' }} onClick={() => onDelete(franchise.id)}>
+                            <Trash2 size={18} />
                         </button>
                     )}
                     <button className="btn" onClick={handleSubmit} disabled={!isDirty}>
-                        <Save size={18} /> Salvar Alterações
+                        <Save size={18} /> Salvar
                     </button>
                 </div>
             </div>
 
             {showReport && (
-                <div className="modal-overlay" onClick={() => setShowReport(false)} style={{
-                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-                    background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 999
-                }}>
-                    <div className="modal-content" onClick={e => e.stopPropagation()} style={{
-                        background: 'white', padding: '2rem', borderRadius: '12px', width: '500px', maxWidth: '90%',
-                        display: 'flex', flexDirection: 'column', gap: '1rem'
-                    }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <h3 style={{ margin: 0 }}>Relatório de Pedido</h3>
-                            <button onClick={() => setShowReport(false)} style={{ border: 'none', background: 'none', cursor: 'pointer' }}>
+                <div className="modal-overlay" onClick={() => setShowReport(false)}>
+                    <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                            <h3 style={{ margin: 0, fontSize: '1.25rem' }}>Relatório para Copiar</h3>
+                            <button onClick={() => setShowReport(false)} style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
                                 <X size={24} />
                             </button>
                         </div>
@@ -253,18 +350,20 @@ export default function SchoolEditor({ school, franchise, onSave, onBack, onDele
                         <textarea
                             readOnly
                             value={reportText}
+                            className="input"
                             style={{
-                                width: '100%', height: '300px', padding: '1rem',
-                                fontFamily: 'monospace', fontSize: '0.9rem',
-                                border: '1px solid #e2e8f0', borderRadius: '8px',
-                                resize: 'none'
+                                height: '300px',
+                                fontFamily: 'monospace', fontSize: '0.85rem',
+                                resize: 'none',
+                                background: '#0f172a', /* Darker integration */
+                                border: '1px solid rgba(255,255,255,0.1)'
                             }}
                         />
 
-                        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
                             <button className="btn" onClick={() => {
                                 navigator.clipboard.writeText(reportText);
-                                alert("Copiado para a área de transferência!");
+                                alert("Copiado!");
                             }}>
                                 Copiar Texto
                             </button>
@@ -273,88 +372,93 @@ export default function SchoolEditor({ school, franchise, onSave, onBack, onDele
                 </div>
             )}
 
-            <form onSubmit={handleSubmit}>
-                <div style={{ marginBottom: '2rem' }}>
-                    <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>NOME DA UNIDADE / FRANQUIA</label>
-                    <input
-                        className="input"
-                        style={{ fontSize: '1.5rem', fontWeight: 600 }}
-                        name="name"
-                        value={formData.name || ''}
-                        onChange={handleNameChange}
-                    />
-                </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '2.5fr 1fr', gap: '2rem' }}>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '2rem' }}>
-                    <div>
-                        <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>COR DA CAMISETA</label>
-                        <input
-                            className="input"
-                            style={{ fontSize: '1rem' }}
-                            value={formData.financials.tshirt_color || ''}
-                            onChange={(e) => {
-                                setFormData(prev => ({
-                                    ...prev,
-                                    financials: { ...prev.financials, tshirt_color: e.target.value }
-                                }));
-                                setIsDirty(true);
-                            }}
-                            placeholder="Ex: Branca"
-                        />
-                    </div>
-                    <div>
-                        <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>COR DAS BERMUDAS</label>
-                        <input
-                            className="input"
-                            style={{ fontSize: '1rem' }}
-                            value={formData.financials.shorts_color || ''}
-                            onChange={(e) => {
-                                setFormData(prev => ({
-                                    ...prev,
-                                    financials: { ...prev.financials, shorts_color: e.target.value }
-                                }));
-                                setIsDirty(true);
-                            }}
-                            placeholder="Ex: Azul Marinho"
-                        />
-                    </div>
-                    <div>
-                        <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>COR DO SHORTS SAIA</label>
-                        <input
-                            className="input"
-                            style={{ fontSize: '1rem' }}
-                            value={formData.financials.skort_color || ''}
-                            onChange={(e) => {
-                                setFormData(prev => ({
-                                    ...prev,
-                                    financials: { ...prev.financials, skort_color: e.target.value }
-                                }));
-                                setIsDirty(true);
-                            }}
-                            placeholder="Ex: Azul Marinho"
-                        />
-                    </div>
-                </div>
+                {/* DO NOT ADD FORM TAG HERE TO AVOID NESTING ISSUES IF SUB-FORMS EXIST - USING DIVS */}
 
-                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '2rem' }}>
+                {/* LEFT COLUMN: IDENTIFICATION & PRODUCTS */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+
+                    {/* Identity Card */}
+                    <div className="card" style={{ background: 'rgba(30, 41, 59, 0.4)', backdropFilter: 'blur(4px)' }}>
+                        <div style={{ marginBottom: '1.5rem' }}>
+                            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.5rem', letterSpacing: '0.05em' }}>NOME DA UNIDADE (Ex: Pedido 01)</label>
+                            <input
+                                className="input"
+                                style={{ fontSize: '1.25rem', fontWeight: 600, padding: '1rem' }}
+                                name="name"
+                                value={formData.name || ''}
+                                onChange={handleNameChange}
+                                placeholder="Identificação da Unidade"
+                            />
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.5rem' }}>COR CAMISETA</label>
+                                <input
+                                    className="input"
+                                    value={formData.financials.tshirt_color || ''}
+                                    onChange={(e) => {
+                                        setFormData(prev => ({ ...prev, financials: { ...prev.financials, tshirt_color: e.target.value } }));
+                                        setIsDirty(true);
+                                    }}
+                                    placeholder="Ex: Branca"
+                                />
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.5rem' }}>COR BERMUDA</label>
+                                <input
+                                    className="input"
+                                    value={formData.financials.shorts_color || ''}
+                                    onChange={(e) => {
+                                        setFormData(prev => ({ ...prev, financials: { ...prev.financials, shorts_color: e.target.value } }));
+                                        setIsDirty(true);
+                                    }}
+                                    placeholder="Ex: Azul"
+                                />
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.5rem' }}>COR SHORTS SAIA</label>
+                                <input
+                                    className="input"
+                                    value={formData.financials.skort_color || ''}
+                                    onChange={(e) => {
+                                        setFormData(prev => ({ ...prev, financials: { ...prev.financials, skort_color: e.target.value } }));
+                                        setIsDirty(true);
+                                    }}
+                                    placeholder="Ex: Azul"
+                                />
+                            </div>
+                        </div>
+                    </div>
 
                     {/* Products Section */}
                     <div>
-                        <div style={{ borderBottom: '2px solid var(--primary-light)', paddingBottom: '0.5rem', marginBottom: '1rem' }}>
-                            <h3 style={{ margin: 0, color: 'var(--primary)' }}>
-                                Produção ({totalItems} itens)
-                            </h3>
-                        </div>
+                        <h3 style={{
+                            fontSize: '1.5rem',
+                            marginBottom: '1rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '12px',
+                            background: 'var(--gradient-primary)',
+                            WebkitBackgroundClip: 'text',
+                            WebkitTextFillColor: 'transparent',
+                            width: 'fit-content'
+                        }}>
+                            Produção <span style={{ fontSize: '1rem', color: 'var(--text-muted)', WebkitTextFillColor: 'var(--text-muted)' }}>({totalItems} itens)</span>
+                        </h3>
 
                         {/* Add Item Form */}
-                        <div style={{ background: '#f8fafc', padding: '1.5rem', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '2rem' }}>
+                        <div className="card" style={{ marginBottom: '2rem', border: '1px solid var(--primary-glow)', boxShadow: '0 0 15px rgba(99, 102, 241, 0.1)' }}>
                             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: '1rem', alignItems: 'end' }}>
                                 <div>
-                                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.25rem', color: '#64748b' }}>PRODUTO</label>
+                                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-muted)' }}>PRODUTO</label>
                                     <select
                                         className="input"
                                         value={newItemProduct}
                                         onChange={e => setNewItemProduct(e.target.value)}
+                                        style={{ height: '42px' }}
                                     >
                                         <option value="">Selecione...</option>
                                         {PRODUCT_OPTIONS.map(opt => (
@@ -363,22 +467,24 @@ export default function SchoolEditor({ school, franchise, onSave, onBack, onDele
                                     </select>
                                 </div>
                                 <div>
-                                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.25rem', color: '#64748b' }}>TAMANHO</label>
+                                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-muted)' }}>TAMANHO</label>
                                     <input
-                                        className="input"
-                                        placeholder="Ex: 10, GG..."
+                                        className="input" // Using class for consistency
+                                        placeholder="Ex: 10, G..."
                                         value={newItemSize}
                                         onChange={e => setNewItemSize(e.target.value.toUpperCase())}
+                                        style={{ height: '42px' }}
                                     />
                                 </div>
                                 <div>
-                                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.25rem', color: '#64748b' }}>QTD</label>
+                                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-muted)' }}>QTD</label>
                                     <input
                                         className="input"
                                         type="number"
                                         placeholder="0"
                                         value={newItemQty}
                                         onChange={e => setNewItemQty(e.target.value)}
+                                        style={{ height: '42px' }}
                                     />
                                 </div>
                                 <button
@@ -386,111 +492,61 @@ export default function SchoolEditor({ school, franchise, onSave, onBack, onDele
                                     className="btn"
                                     onClick={handleAddItem}
                                     disabled={!newItemProduct || !newItemSize || !newItemQty}
+                                    style={{ height: '42px' }}
                                 >
                                     + Adicionar
                                 </button>
                             </div>
                         </div>
 
-                        {/* Items List */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                        {/* List */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                             {currentProducts.length === 0 && (
-                                <div style={{ textAlign: 'center', color: '#94a3b8', padding: '2rem', border: '2px dashed #e2e8f0', borderRadius: '12px' }}>
-                                    Nenhum item adicionado.
+                                <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '3rem', border: '2px dashed rgba(255,255,255,0.1)', borderRadius: '16px' }}>
+                                    <Shirt size={48} style={{ opacity: 0.2, marginBottom: '1rem' }} />
+                                    <p>Nenhum item adicionado ainda.</p>
                                 </div>
                             )}
 
-                            {currentProducts.map(product => {
-                                const sizes = formData.inventory[product] || {};
-                                // Sort sizes logically if possible, otherwise alpha
-                                const sizeKeys = Object.keys(sizes).sort((a, b) => {
-                                    const numA = parseInt(a);
-                                    const numB = parseInt(b);
-                                    if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
-                                    return a.localeCompare(b);
-                                });
-
-                                return (
-                                    <div key={product} className="product-row" style={{ background: 'white', border: '1px solid #e2e8f0' }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.5rem' }}>
-                                            <span style={{ fontWeight: 700, fontSize: '1.1rem', color: '#334155' }}>{product}</span>
-                                            <span style={{ fontSize: '0.9rem', color: 'var(--primary)', fontWeight: 600, background: '#e0e7ff', padding: '2px 8px', borderRadius: '99px' }}>
-                                                Total: {calculateProductTotal(product)}
-                                            </span>
-                                        </div>
-
-                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
-                                            {sizeKeys.map(size => {
-                                                const isEditing = editingItem?.product === product && editingItem?.size === size;
-
-                                                return (
-                                                    <div key={size} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#f8fafc', padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
-                                                        <span style={{ fontWeight: 600, color: '#475569' }}>{size}:</span>
-
-                                                        {isEditing ? (
-                                                            <>
-                                                                <input
-                                                                    autoFocus
-                                                                    className="input"
-                                                                    style={{ width: '60px', padding: '2px 4px', height: 'auto', fontSize: '0.9rem' }}
-                                                                    value={editValue}
-                                                                    onChange={(e) => setEditValue(e.target.value)}
-                                                                    onKeyDown={(e) => {
-                                                                        if (e.key === 'Enter') handleEditSave();
-                                                                        if (e.key === 'Escape') handleEditCancel();
-                                                                    }}
-                                                                />
-                                                                <button onClick={handleEditSave} style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--primary)', display: 'flex' }}>
-                                                                    <Check size={16} />
-                                                                </button>
-                                                                <button onClick={handleEditCancel} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#ef4444', display: 'flex' }}>
-                                                                    <X size={16} />
-                                                                </button>
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                <span style={{ fontWeight: 700, color: 'var(--primary)' }}>{sizes[size]}</span>
-                                                                <div style={{ display: 'flex', gap: '4px', marginLeft: '6px' }}>
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => handleEditStart(product, size, sizes[size])}
-                                                                        style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#64748b', display: 'flex', padding: 0 }}
-                                                                        title="Editar Quantidade"
-                                                                    >
-                                                                        <Edit2 size={14} />
-                                                                    </button>
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => handleRemoveItem(product, size)}
-                                                                        style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#ef4444', display: 'flex', padding: 0 }}
-                                                                        title="Remover"
-                                                                    >
-                                                                        <Trash2 size={14} />
-                                                                    </button>
-                                                                </div>
-                                                            </>
-                                                        )}
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-                                );
-                            })}
+                            {currentProducts.map(product => (
+                                <ProductRow
+                                    key={product}
+                                    product={product}
+                                    sizes={formData.inventory[product]}
+                                    onRemove={handleRemoveItem}
+                                    onEditStart={handleEditStart}
+                                    editingItem={editingItem}
+                                    editValue={editValue}
+                                    setEditValue={setEditValue}
+                                    onEditSave={handleEditSave}
+                                    onEditCancel={handleEditCancel}
+                                />
+                            ))}
                         </div>
                     </div>
+                </div>
 
-                    {/* Financials Section */}
-                    <div>
-                        <h3 style={{ borderBottom: '2px solid var(--accent)', paddingBottom: '0.5rem', marginBottom: '1rem', color: 'var(--accent)' }}>
-                            Financeiro
+                {/* RIGHT COLUMN: FINANCIALS */}
+                <div>
+                    <div className="card" style={{ position: 'sticky', top: '2rem', border: '1px solid rgba(236, 72, 153, 0.2)' }}>
+                        <h3 style={{
+                            fontSize: '1.25rem',
+                            marginBottom: '1.5rem',
+                            paddingBottom: '1rem',
+                            borderBottom: '1px solid rgba(255,255,255,0.1)',
+                            color: 'var(--accent)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px'
+                        }}>
+                            <DollarSign size={20} /> Financeiro
                         </h3>
 
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                             <div>
-                                <label style={{ display: 'block', fontWeight: 500, marginBottom: '0.25rem' }}>Valor Cobrado (Total)</label>
+                                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-muted)' }}>VALOR COBRADO (TOTAL)</label>
                                 <div style={{ position: 'relative' }}>
-                                    <span style={{ position: 'absolute', left: '10px', top: '10px', color: '#94a3b8' }}>R$</span>
+                                    <span style={{ position: 'absolute', left: '12px', top: '12px', color: 'var(--text-muted)' }}>R$</span>
                                     <input
                                         className="input"
                                         style={{ paddingLeft: '2.5rem' }}
@@ -503,9 +559,9 @@ export default function SchoolEditor({ school, franchise, onSave, onBack, onDele
                             </div>
 
                             <div>
-                                <label style={{ display: 'block', fontWeight: 500, marginBottom: '0.25rem' }}>Valor Pago (Sinal)</label>
+                                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-muted)' }}>VALOR PAGO (SINAL)</label>
                                 <div style={{ position: 'relative' }}>
-                                    <span style={{ position: 'absolute', left: '10px', top: '10px', color: '#94a3b8' }}>R$</span>
+                                    <span style={{ position: 'absolute', left: '12px', top: '12px', color: 'var(--text-muted)' }}>R$</span>
                                     <input
                                         className="input"
                                         style={{ paddingLeft: '2.5rem' }}
@@ -518,9 +574,9 @@ export default function SchoolEditor({ school, franchise, onSave, onBack, onDele
                             </div>
 
                             <div>
-                                <label style={{ display: 'block', fontWeight: 500, marginBottom: '0.25rem' }}>Custo de Produção</label>
+                                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-muted)' }}>CUSTO DE PRODUÇÃO</label>
                                 <div style={{ position: 'relative' }}>
-                                    <span style={{ position: 'absolute', left: '10px', top: '10px', color: '#94a3b8' }}>R$</span>
+                                    <span style={{ position: 'absolute', left: '12px', top: '12px', color: 'var(--text-muted)' }}>R$</span>
                                     <input
                                         className="input"
                                         style={{ paddingLeft: '2.5rem' }}
@@ -532,16 +588,23 @@ export default function SchoolEditor({ school, franchise, onSave, onBack, onDele
                                 </div>
                             </div>
 
-                            <div style={{ marginTop: '1rem', padding: '1rem', background: '#f0fdf4', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
-                                <div style={{ fontSize: '0.9rem', color: '#166534', fontWeight: 600 }}>Lucro Estimado</div>
-                                <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#15803d' }}>
+                            <div style={{
+                                marginTop: '1rem',
+                                padding: '1.5rem',
+                                background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(16, 185, 129, 0.2) 100%)',
+                                borderRadius: '16px',
+                                border: '1px solid rgba(16, 185, 129, 0.3)',
+                                textAlign: 'center'
+                            }}>
+                                <div style={{ fontSize: '0.9rem', color: '#6ee7b7', fontWeight: 600, marginBottom: '0.5rem' }}>LUCRO ESTIMADO</div>
+                                <div style={{ fontSize: '2rem', fontWeight: 800, color: '#34d399', textShadow: '0 2px 10px rgba(16, 185, 129, 0.3)' }}>
                                     R$ {profit.toFixed(2)}
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </form>
+            </div>
         </div>
     );
 }

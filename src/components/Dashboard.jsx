@@ -28,11 +28,15 @@ export default function Dashboard({ schools, currentPath, onNavigate, onAddFolde
 
     // Helper to calculate financials for a single school (handling overrides)
     const getSchoolFinancials = (school) => {
-        if (!school) return { revenue: 0, cost: 0, profit: 0, isOverride: false };
+        if (!school) return { revenue: 0, cost: 0, profit: 0, entryValue: 0, isOverride: false };
 
         const schoolFranchises = school.franchises || [];
         const franchiseRevenue = schoolFranchises.reduce((acc, f) => acc + (parseFloat(f.financials?.total_value) || 0), 0);
         const franchiseCost = schoolFranchises.reduce((acc, f) => acc + (parseFloat(f.financials?.production_cost) || 0), 0);
+
+        // Entry value is currently only manual at school level, or we could sum it if franchises had it.
+        // For now, let's treat it as a manual override or global setting on the school.
+        const schoolEntryValue = parseFloat(school.financials?.entry_value || 0);
 
         const schoolRevenueOverride = parseFloat(school.financials?.total_value || 0);
         const schoolCostOverride = parseFloat(school.financials?.production_cost || 0);
@@ -47,6 +51,7 @@ export default function Dashboard({ schools, currentPath, onNavigate, onAddFolde
             revenue,
             cost,
             profit: revenue - cost,
+            entryValue: schoolEntryValue,
             isOverride: hasOverride
         };
     };
@@ -54,6 +59,7 @@ export default function Dashboard({ schools, currentPath, onNavigate, onAddFolde
     let totalRevenue = 0;
     let totalCost = 0;
     let totalProfit = 0;
+    let totalEntryValue = 0;
     let isSchoolOverride = false;
 
     if (currentLevel === 'root') {
@@ -61,6 +67,7 @@ export default function Dashboard({ schools, currentPath, onNavigate, onAddFolde
             const stats = getSchoolFinancials(school);
             totalRevenue += stats.revenue;
             totalCost += stats.cost;
+            totalEntryValue += stats.entryValue;
         });
         totalProfit = totalRevenue - totalCost;
     } else {
@@ -69,6 +76,7 @@ export default function Dashboard({ schools, currentPath, onNavigate, onAddFolde
         totalRevenue = stats.revenue;
         totalCost = stats.cost;
         totalProfit = stats.profit;
+        totalEntryValue = stats.entryValue;
         isSchoolOverride = stats.isOverride;
     }
 
@@ -88,11 +96,13 @@ export default function Dashboard({ schools, currentPath, onNavigate, onAddFolde
     const [isEditSchoolModalOpen, setIsEditSchoolModalOpen] = useState(false);
     const [schoolTotalValue, setSchoolTotalValue] = useState('');
     const [schoolProductionCost, setSchoolProductionCost] = useState('');
+    const [schoolEntryValueInput, setSchoolEntryValueInput] = useState('');
 
     const openEditSchoolModal = () => {
         if (!parentSchool) return;
         setSchoolTotalValue(parentSchool.financials?.total_value || '');
         setSchoolProductionCost(parentSchool.financials?.production_cost || '');
+        setSchoolEntryValueInput(parentSchool.financials?.entry_value || '');
         setIsEditSchoolModalOpen(true);
     };
 
@@ -100,7 +110,8 @@ export default function Dashboard({ schools, currentPath, onNavigate, onAddFolde
         e.preventDefault();
         onUpdateSchool(parentSchool.id, {
             total_value: schoolTotalValue,
-            production_cost: schoolProductionCost
+            production_cost: schoolProductionCost,
+            entry_value: schoolEntryValueInput
         });
         setIsEditSchoolModalOpen(false);
     };
@@ -110,30 +121,37 @@ export default function Dashboard({ schools, currentPath, onNavigate, onAddFolde
             {/* Header & Breadcrumbs */}
             <div className="header">
                 <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>
+                    <div className="breadcrumb-nav">
                         <span
-                            style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                            className="breadcrumb-item"
                             onClick={() => onNavigate([])}
                         >
                             <Home size={14} /> Início
                         </span>
                         {parentSchool && (
                             <>
-                                <ChevronRight size={14} />
-                                <span style={{ fontWeight: 600, color: 'var(--primary)' }}>{parentSchool.name}</span>
+                                <ChevronRight size={14} style={{ opacity: 0.5 }} />
+                                <span className="breadcrumb-item" style={{ color: 'var(--primary-light)', background: 'rgba(99, 102, 241, 0.1)' }}>
+                                    {parentSchool.name}
+                                </span>
                             </>
                         )}
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                        <h1 style={{ margin: 0, fontSize: '2rem' }}>
-                            {currentLevel === 'root' ? 'Todas as Escolas' : `Unidades: ${parentSchool?.name}`}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.5rem' }}>
+                        <h1 className="page-title">
+                            {currentLevel === 'root' ? 'Visão Geral' : parentSchool?.name}
                         </h1>
                         {currentLevel === 'school' && (
-                            <button className="btn btn-secondary" onClick={openEditSchoolModal} style={{ padding: '4px 12px', height: 'auto', fontSize: '0.8rem' }}>
-                                ✏️ Editar Financeiro Global
+                            <button className="btn btn-secondary" onClick={openEditSchoolModal} style={{ padding: '6px 16px', fontSize: '0.8rem', height: 'auto', borderRadius: '20px' }}>
+                                <DollarSign size={14} /> Editar Financeiro
                             </button>
                         )}
                     </div>
+                    <p style={{ color: 'var(--text-muted)', margin: '0.5rem 0 0 0', fontSize: '0.95rem' }}>
+                        {currentLevel === 'root'
+                            ? 'Gerencie todas as escolas e franquias em um só lugar.'
+                            : 'Gerenciamento de unidades desta escola.'}
+                    </p>
                 </div>
                 <button className="btn" onClick={() => setIsModalOpen(true)}>
                     <Plus size={20} />
@@ -145,38 +163,77 @@ export default function Dashboard({ schools, currentPath, onNavigate, onAddFolde
             <div className="stats-grid">
                 <div className="card stat-card">
                     <div className="stat-label">
-                        Faturamento {currentLevel === 'school' ? 'da Escola' : 'Total'}
-                        {isSchoolOverride && <span style={{ marginLeft: '8px', fontSize: '0.7rem', background: '#e0e7ff', color: 'var(--primary)', padding: '2px 6px', borderRadius: '4px' }}>DEFINIDO MANUALMENTE</span>}
+                        <DollarSign size={14} style={{ marginRight: '6px', color: '#818cf8' }} />
+                        Faturamento
+                        {isSchoolOverride && <span style={{ marginLeft: 'auto', fontSize: '0.65rem', background: 'rgba(99, 102, 241, 0.2)', color: '#a5b4fc', padding: '2px 8px', borderRadius: '10px' }}>MANUAL</span>}
                     </div>
-                    <div className="stat-value">R$ {totalRevenue.toFixed(2)}</div>
-                    <DollarSign className="absolute top-4 right-4 text-gray-200" size={40} strokeWidth={1} />
+                    <div className="stat-value">R$ {totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                    <DollarSign className="stat-icon-bg" size={100} color="#818cf8" />
                 </div>
-                <div className="card stat-card">
+
+                {currentLevel === 'school' && (
+                    <div className="card stat-card" style={{ borderTop: '4px solid #06b6d4' }}>
+                        <div className="stat-label">
+                            <DollarSign size={14} style={{ marginRight: '6px', color: '#22d3ee' }} />
+                            Valor de Entrada
+                        </div>
+                        <div className="stat-value" style={{ background: 'none', color: '#67e8f9', webkitTextFillColor: 'initial' }}>
+                            R$ {totalEntryValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </div>
+                        <DollarSign className="stat-icon-bg" size={100} color="#06b6d4" />
+                    </div>
+                )}
+
+                <div className="card stat-card" style={{ borderTop: '4px solid #ef4444' }}>
                     <div className="stat-label">
-                        Custo {currentLevel === 'school' ? 'da Escola' : 'Total'}
-                        {isSchoolOverride && <span style={{ marginLeft: '8px', fontSize: '0.7rem', background: '#e0e7ff', color: 'var(--primary)', padding: '2px 6px', borderRadius: '4px' }}>DEFINIDO MANUALMENTE</span>}
+                        <Wallet size={14} style={{ marginRight: '6px', color: '#f87171' }} />
+                        Custos
+                        {isSchoolOverride && <span style={{ marginLeft: 'auto', fontSize: '0.65rem', background: 'rgba(239, 68, 68, 0.2)', color: '#fca5a5', padding: '2px 8px', borderRadius: '10px' }}>MANUAL</span>}
                     </div>
-                    <div className="stat-value" style={{ color: '#ef4444' }}>R$ {totalCost.toFixed(2)}</div>
-                    <Wallet className="absolute top-4 right-4 text-red-100" size={40} strokeWidth={1} />
+                    <div className="stat-value" style={{ background: 'none', color: '#fca5a5', webkitTextFillColor: 'initial' }}>
+                        R$ {totalCost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </div>
+                    <Wallet className="stat-icon-bg" size={100} color="#ef4444" />
                 </div>
-                <div className="card stat-card">
-                    <div className="stat-label">Lucro {currentLevel === 'school' ? 'da Escola' : 'Total'}</div>
-                    <div className="stat-value" style={{ color: '#10b981' }}>R$ {totalProfit.toFixed(2)}</div>
-                    <TrendingUp className="absolute top-4 right-4 text-green-100" size={40} strokeWidth={1} />
+
+                <div className="card stat-card" style={{ borderTop: '4px solid #10b981' }}>
+                    <div className="stat-label">
+                        <TrendingUp size={14} style={{ marginRight: '6px', color: '#34d399' }} />
+                        Lucro Líquido
+                    </div>
+                    <div className="stat-value" style={{ background: 'none', color: '#6ee7b7', webkitTextFillColor: 'initial' }}>
+                        R$ {totalProfit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </div>
+                    <TrendingUp className="stat-icon-bg" size={100} color="#10b981" />
                 </div>
-                <div className="card stat-card">
-                    <div className="stat-label">Peças para Produzir</div>
-                    <div className="stat-value" style={{ color: '#ec4899' }}>{totalItemsCount}</div>
-                    <Shirt className="absolute top-4 right-4 text-pink-100" size={40} strokeWidth={1} />
+
+                <div className="card stat-card" style={{ borderTop: '4px solid #ec4899' }}>
+                    <div className="stat-label">
+                        <Shirt size={14} style={{ marginRight: '6px', color: '#f472b6' }} />
+                        Produção
+                    </div>
+                    <div className="stat-value" style={{ background: 'none', color: '#f9a8d4', webkitTextFillColor: 'initial' }}>
+                        {totalItemsCount} <span style={{ fontSize: '1rem', fontWeight: 500, color: '#fbcfe8' }}>peças</span>
+                    </div>
+                    <Shirt className="stat-icon-bg" size={100} color="#ec4899" />
                 </div>
             </div>
 
             {/* Folder Grid */}
-            <h2 style={{ marginBottom: '1.5rem' }}>{currentLevel === 'root' ? 'Escolas' : 'Franquias / Unidades'}</h2>
+            <h2 style={{ marginBottom: '1.5rem', fontSize: '1.25rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '10px' }}>
+                {currentLevel === 'root' ? <Building2 color="var(--primary)" /> : <Folder color="var(--accent)" />}
+                {currentLevel === 'root' ? 'Escolas Cadastradas' : 'Unidades da Franquia'}
+            </h2>
 
             {itemsToDisplay.length === 0 && (
-                <div style={{ textAlign: 'center', color: '#94a3b8', padding: '2rem' }}>
-                    Nenhuma {currentLevel === 'root' ? 'escola' : 'unidade'} cadastrada.
+                <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '4rem', background: 'rgba(255,255,255,0.02)', borderRadius: '16px', border: '2px dashed rgba(255,255,255,0.1)' }}>
+                    <div style={{ background: 'rgba(255,255,255,0.05)', width: '64px', height: '64px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
+                        <Folder size={32} opacity={0.5} />
+                    </div>
+                    <p>Nenhuma {currentLevel === 'root' ? 'escola' : 'unidade'} encontrada.</p>
+                    <button className="btn btn-secondary" onClick={() => setIsModalOpen(true)} style={{ marginTop: '1rem' }}>
+                        Criar Agora
+                    </button>
                 </div>
             )}
 
@@ -193,21 +250,29 @@ export default function Dashboard({ schools, currentPath, onNavigate, onAddFolde
                                 e.stopPropagation();
                                 if (window.confirm('Tem certeza que deseja excluir?')) onDeleteFolder(item.id);
                             }}
+                            title="Excluir"
                         >
                             <Trash2 size={16} />
                         </button>
 
                         {currentLevel === 'root' ?
-                            <Folder className="folder-icon" strokeWidth={1.5} /> :
-                            <Building2 className="folder-icon" strokeWidth={1.5} color="#ec4899" />
+                            <div style={{ padding: '12px', background: 'rgba(99, 102, 241, 0.1)', borderRadius: '12px', marginBottom: '1rem' }}>
+                                <Building2 size={32} color="#818cf8" />
+                            </div>
+                            :
+                            <div style={{ padding: '12px', background: 'rgba(236, 72, 153, 0.1)', borderRadius: '12px', marginBottom: '1rem' }}>
+                                <Folder size={32} color="#f472b6" />
+                            </div>
                         }
-                        <div className="folder-title">{item.name}</div>
 
-                        <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '0.5rem' }}>
-                            {currentLevel === 'root'
-                                ? `${item.franchises?.length || 0} unidades`
-                                : `${calculateTotalItems(item.inventory)} itens`
-                            }
+                        <div>
+                            <div className="folder-title">{item.name}</div>
+                            <div className="folder-meta">
+                                {currentLevel === 'root'
+                                    ? <><Folder size={12} /> {item.franchises?.length || 0} unidades</>
+                                    : <><Shirt size={12} /> {calculateTotalItems(item.inventory)} peças</>
+                                }
+                            </div>
                         </div>
                     </div>
                 ))}
@@ -218,8 +283,8 @@ export default function Dashboard({ schools, currentPath, onNavigate, onAddFolde
                     <div className="modal-content" onClick={e => e.stopPropagation()}>
                         <h3>{currentLevel === 'root' ? 'Nova Escola' : 'Nova Unidade'}</h3>
                         <form onSubmit={handleCreate}>
-                            <div style={{ marginBottom: '1rem' }}>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Nome</label>
+                            <div style={{ marginBottom: '1.5rem' }}>
+                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, color: 'var(--text-muted)' }}>Nome da Identificação</label>
                                 <input
                                     autoFocus
                                     className="input"
@@ -241,33 +306,57 @@ export default function Dashboard({ schools, currentPath, onNavigate, onAddFolde
                 <div className="modal-overlay" onClick={() => setIsEditSchoolModalOpen(false)}>
                     <div className="modal-content" onClick={e => e.stopPropagation()}>
                         <h3>Editar Financeiro da Escola</h3>
-                        <p style={{ fontSize: '0.9rem', color: '#64748b', marginBottom: '1.5rem' }}>
-                            Defina valores "Gerais" para a escola. Se preencher aqui, o sistema vai ignorar a soma das unidades e usar estes valores.
-                        </p>
+                        <div style={{ background: 'rgba(245, 158, 11, 0.1)', borderLeft: '4px solid #f59e0b', padding: '1rem', marginBottom: '1.5rem', borderRadius: '4px' }}>
+                            <p style={{ margin: 0, fontSize: '0.9rem', color: '#fbbf24' }}>
+                                <strong>Atenção:</strong> Ao definir valores aqui, o sistema ignorará a soma automática das unidades e usará estes valores fixos.
+                            </p>
+                        </div>
                         <form onSubmit={handleSaveSchoolFinancials}>
                             <div style={{ marginBottom: '1rem' }}>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Faturamento Total (Contrato)</label>
-                                <input
-                                    type="number"
-                                    className="input"
-                                    value={schoolTotalValue}
-                                    onChange={e => setSchoolTotalValue(e.target.value)}
-                                    placeholder="Ex: 50000"
-                                />
+                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, color: 'var(--text-muted)' }}>Faturamento Total (Contrato)</label>
+                                <div style={{ position: 'relative' }}>
+                                    <span style={{ position: 'absolute', left: '12px', top: '12px', color: '#64748b' }}>R$</span>
+                                    <input
+                                        type="number"
+                                        className="input"
+                                        style={{ paddingLeft: '2.5rem' }}
+                                        value={schoolTotalValue}
+                                        onChange={e => setSchoolTotalValue(e.target.value)}
+                                        placeholder="0.00"
+                                    />
+                                </div>
                             </div>
                             <div style={{ marginBottom: '1rem' }}>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Custo de Produção Total</label>
-                                <input
-                                    type="number"
-                                    className="input"
-                                    value={schoolProductionCost}
-                                    onChange={e => setSchoolProductionCost(e.target.value)}
-                                    placeholder="Ex: 15000"
-                                />
+                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, color: 'var(--text-muted)' }}>Valor de Entrada (Sinal)</label>
+                                <div style={{ position: 'relative' }}>
+                                    <span style={{ position: 'absolute', left: '12px', top: '12px', color: '#64748b' }}>R$</span>
+                                    <input
+                                        type="number"
+                                        className="input"
+                                        style={{ paddingLeft: '2.5rem' }}
+                                        value={schoolEntryValueInput}
+                                        onChange={e => setSchoolEntryValueInput(e.target.value)}
+                                        placeholder="0.00"
+                                    />
+                                </div>
+                            </div>
+                            <div style={{ marginBottom: '1.5rem' }}>
+                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, color: 'var(--text-muted)' }}>Custo de Produção Total</label>
+                                <div style={{ position: 'relative' }}>
+                                    <span style={{ position: 'absolute', left: '12px', top: '12px', color: '#64748b' }}>R$</span>
+                                    <input
+                                        type="number"
+                                        className="input"
+                                        style={{ paddingLeft: '2.5rem' }}
+                                        value={schoolProductionCost}
+                                        onChange={e => setSchoolProductionCost(e.target.value)}
+                                        placeholder="0.00"
+                                    />
+                                </div>
                             </div>
                             <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
                                 <button type="button" className="btn btn-secondary" onClick={() => setIsEditSchoolModalOpen(false)}>Cancelar</button>
-                                <button type="submit" className="btn">Salvar</button>
+                                <button type="submit" className="btn">Salvar Alterações</button>
                             </div>
                         </form>
                     </div>
