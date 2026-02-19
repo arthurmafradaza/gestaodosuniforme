@@ -1,7 +1,18 @@
 import React, { useState } from 'react';
-import { Plus, Folder, DollarSign, TrendingUp, Shirt, ChevronRight, Home, Building2, Trash2, Wallet } from 'lucide-react';
+import { Plus, Folder, DollarSign, TrendingUp, Shirt, ChevronRight, Home, Building2, Trash2, Wallet, Calculator } from 'lucide-react';
+import BudgetCalculator from './BudgetCalculator';
 
 export default function Dashboard({ schools, currentPath, onNavigate, onAddFolder, onDeleteFolder, onUpdateSchool }) {
+    // ... existing logic ...
+
+    // [New State]
+    const [isBudgetOpen, setIsBudgetOpen] = useState(false);
+
+    // ... existing calculations ...
+
+    // [End of State]
+
+    // [Logic continues below inside the component]
     // currentPath is array of IDs: [] = root, [schoolId] = inside school
 
     const currentLevel = currentPath.length === 0 ? 'root' : 'school';
@@ -153,10 +164,17 @@ export default function Dashboard({ schools, currentPath, onNavigate, onAddFolde
                             : 'Gerenciamento de unidades desta escola.'}
                     </p>
                 </div>
-                <button className="btn" onClick={() => setIsModalOpen(true)}>
-                    <Plus size={20} />
-                    {currentLevel === 'root' ? 'Nova Escola' : 'Nova Unidade'}
-                </button>
+                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                    {/* New Budget Button */}
+                    <button className="btn btn-secondary" onClick={() => setIsBudgetOpen(true)}>
+                        <Calculator size={20} />
+                        Orçamento
+                    </button>
+                    <button className="btn" onClick={() => setIsModalOpen(true)}>
+                        <Plus size={20} />
+                        {currentLevel === 'root' ? 'Nova Escola' : 'Nova Unidade'}
+                    </button>
+                </div>
             </div>
 
             {/* Stats Cards */}
@@ -361,6 +379,9 @@ export default function Dashboard({ schools, currentPath, onNavigate, onAddFolde
                         </form>
                     </div>
                 </div>
+            )}
+            {isBudgetOpen && (
+                <BudgetCalculator onClose={() => setIsBudgetOpen(false)} />
             )}
         </div>
     );
