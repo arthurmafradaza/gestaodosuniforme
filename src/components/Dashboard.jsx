@@ -223,7 +223,11 @@ export default function Dashboard({ schools, currentPath, onNavigate, onAddFolde
 
             {/* Stats Cards */}
             <div className="stats-grid">
-                <div className="card stat-card">
+                <div
+                    className="card stat-card"
+                    onClick={() => currentLevel === 'school' && openEditSchoolModal('total_value')}
+                    style={{ cursor: currentLevel === 'school' ? 'pointer' : 'default' }}
+                >
                     <div className="stat-label">
                         <DollarSign size={14} style={{ marginRight: '6px', color: '#818cf8' }} />
                         Faturamento
@@ -233,8 +237,7 @@ export default function Dashboard({ schools, currentPath, onNavigate, onAddFolde
                                 <Pencil
                                     size={14}
                                     className="edit-icon"
-                                    onClick={() => openEditSchoolModal('total_value')}
-                                    style={{ cursor: 'pointer', color: 'var(--text-muted)' }}
+                                    style={{ color: 'var(--text-muted)' }}
                                 />
                             )}
                         </div>
@@ -244,18 +247,19 @@ export default function Dashboard({ schools, currentPath, onNavigate, onAddFolde
                 </div>
 
                 {currentLevel === 'school' && (
-                    <div className="card stat-card" style={{ borderTop: '4px solid #06b6d4' }}>
+                    <div
+                        className="card stat-card"
+                        onClick={() => openEditSchoolModal('entry_value')}
+                        style={{ borderTop: '4px solid #06b6d4', cursor: 'pointer' }}
+                    >
                         <div className="stat-label">
                             <DollarSign size={14} style={{ marginRight: '6px', color: '#22d3ee' }} />
                             Valor de Entrada
-                            {currentLevel === 'school' && (
-                                <Pencil
-                                    size={14}
-                                    className="edit-icon"
-                                    onClick={() => openEditSchoolModal('entry_value')}
-                                    style={{ marginLeft: 'auto', cursor: 'pointer', color: 'var(--text-muted)' }}
-                                />
-                            )}
+                            <Pencil
+                                size={14}
+                                className="edit-icon"
+                                style={{ marginLeft: 'auto', color: 'var(--text-muted)' }}
+                            />
                         </div>
                         <div className="stat-value" style={{ background: 'none', color: '#67e8f9', webkitTextFillColor: 'initial' }}>
                             R$ {totalEntryValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
@@ -264,7 +268,11 @@ export default function Dashboard({ schools, currentPath, onNavigate, onAddFolde
                     </div>
                 )}
 
-                <div className="card stat-card" style={{ borderTop: '4px solid #ef4444' }}>
+                <div
+                    className="card stat-card"
+                    onClick={() => currentLevel === 'school' && openEditSchoolModal('production_cost')}
+                    style={{ borderTop: '4px solid #ef4444', cursor: currentLevel === 'school' ? 'pointer' : 'default' }}
+                >
                     <div className="stat-label">
                         <Wallet size={14} style={{ marginRight: '6px', color: '#f87171' }} />
                         Custos
@@ -274,8 +282,7 @@ export default function Dashboard({ schools, currentPath, onNavigate, onAddFolde
                                 <Pencil
                                     size={14}
                                     className="edit-icon"
-                                    onClick={() => openEditSchoolModal('production_cost')}
-                                    style={{ cursor: 'pointer', color: 'var(--text-muted)' }}
+                                    style={{ color: 'var(--text-muted)' }}
                                 />
                             )}
                         </div>
