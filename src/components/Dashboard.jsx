@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Plus, Folder, DollarSign, TrendingUp, Shirt, ChevronRight, Home, Building2, Trash2, Wallet, Calculator, Pencil } from 'lucide-react';
 import BudgetCalculator from './BudgetCalculator';
 
-export default function Dashboard({ schools, currentPath, onNavigate, onAddFolder, onDeleteFolder, onUpdateSchool }) {
+export default function Dashboard({ schools, currentPath, onNavigate, onAddFolder, onDeleteFolder, onUpdateSchool, isEmbedded = false }) {
     // ... existing logic ...
 
     // [New State]
@@ -82,7 +82,7 @@ export default function Dashboard({ schools, currentPath, onNavigate, onAddFolde
         });
         totalProfit = totalRevenue - totalCost;
     } else {
-        // Single School View
+        // Single School OR List View
         const stats = getSchoolFinancials(parentSchool);
         totalRevenue = stats.revenue;
         totalCost = stats.cost;
@@ -90,6 +90,138 @@ export default function Dashboard({ schools, currentPath, onNavigate, onAddFolde
         totalEntryValue = stats.entryValue;
         isSchoolOverride = stats.isOverride;
     }
+
+    // --- Analytics Data Calculation ---
+    const getGlobalCostBreakdown = () => {
+        let malha = 0, talhacao = 0, costura = 0, embalagem = 0, estampa = 0, variavel = 0;
+        schools.forEach(s => {
+            const f = s.financials || {};
+            malha += parseFloat(f.cost_malha || 0);
+            talhacao += parseFloat(f.cost_talhacao || 0);
+            costura += parseFloat(f.cost_costura || 0);
+            embalagem += parseFloat(f.cost_embalagem || 0);
+            estampa += parseFloat(f.cost_estampa || 0);
+            variavel += parseFloat(f.cost_variavel || 0);
+        });
+        const total = malha + talhacao + costura + embalagem + estampa + variavel;
+        return { total, malha, talhacao, costura, embalagem, estampa, variavel };
+    };
+
+    const costData = getGlobalCostBreakdown();
+    const productionBySchool = schools.map(s => ({
+        name: s.name,
+        count: (s.franchises || []).reduce((acc, f) => acc + calculateTotalItems(f.inventory), 0)
+    })).sort((a, b) => b.count - a.count).slice(0, 5);
+
+    // --- Components ---
+    const DonutChart = ({ data }) => {
+        const total = data.total || 1;
+        const colors = ['#6366f1', '#ec4899', '#10b981', '#f59e0b', '#ef4444', '#a855f7'];
+        const segments = [
+            { label: 'Malha', val: data.malha },
+            { label: 'Talhação', val: data.talhacao },
+            { label: 'Costura', val: data.costura },
+            { label: 'Embalagem', val: data.embalagem },
+            { label: 'Estampa', val: data.estampa },
+            { label: 'Variável', val: data.variavel }
+        ].filter(s => s.val > 0);
+
+        let currentOffset = 0;
+        const radius = 40;
+        const circumference = 2 * Math.PI * radius;
+        const hasData = segments.length > 0;
+
+        return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '2rem', justifyContent: 'center' }}>
+                <div className="donut-container">
+                    <svg viewBox="0 0 100 100" style={{ transform: 'rotate(-90deg)' }}>
+                        {!hasData ? (
+                            <circle
+                                cx="50" cy="50" r={radius}
+                                stroke="rgba(255,255,255,0.05)"
+                                strokeWidth="12"
+                                fill="transparent"
+                            />
+                        ) : (
+                            segments.map((s, i) => {
+                                const percent = (s.val / total);
+                                const dashArrayValue = percent * circumference;
+                                const offset = (currentOffset / 100) * circumference;
+
+                                const segment = (
+                                    <circle
+                                        key={i}
+                                        className="donut-segment"
+                                        cx="50" cy="50" r={radius}
+                                        stroke={colors[i % colors.length]}
+                                        strokeWidth="12"
+                                        fill="transparent"
+                                        strokeDasharray={`${dashArrayValue} ${circumference}`}
+                                        style={{
+                                            strokeDashoffset: -offset,
+                                            transition: 'all 0.5s ease'
+                                        }}
+                                    />
+                                );
+                                currentOffset += (percent * 100);
+                                return segment;
+                            })
+                        )}
+                        <circle cx="50" cy="50" r="32" fill="#1e293b" />
+                    </svg>
+                    <div className="progress-text" style={{ pointerEvents: 'none', position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }}>
+                        <div style={{ fontSize: '0.7rem', opacity: 0.5, textTransform: 'uppercase', marginBottom: '2px' }}>Total</div>
+                        <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'white' }}>
+                            R$ {data.total >= 1000 ? (data.total / 1000).toFixed(1) + 'k' : data.total.toLocaleString()}
+                        </div>
+                    </div>
+                </div>
+                <div className="chart-legend">
+                    {!hasData ? (
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Aguardando dados...</p>
+                    ) : (
+                        segments.map((s, i) => (
+                            <div key={i} className="legend-item" style={{ gap: '1rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <div className="legend-color" style={{ background: colors[i % colors.length], width: '10px', height: '100%', borderRadius: '2px' }} />
+                                    <span style={{ fontSize: '0.85rem' }}>{s.label}</span>
+                                </div>
+                                <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>R$ {s.val.toLocaleString()}</span>
+                            </div>
+                        ))
+                    )}
+                </div>
+            </div>
+        );
+    };
+
+    const BarChart = ({ data }) => {
+        const hasData = data.some(d => d.count > 0);
+        const max = Math.max(...data.map(d => d.count), 1);
+
+        if (!hasData) {
+            return (
+                <div style={{ height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                    Aguardando lançamento de produção...
+                </div>
+            );
+        }
+
+        return (
+            <div className="bar-chart">
+                {data.filter(d => d.count > 0).map((d, i) => (
+                    <div
+                        key={i}
+                        className="bar-item"
+                        style={{ height: `${(d.count / max) * 100}%` }}
+                    >
+                        <span className="bar-value">{d.count}</span>
+                        <span className="bar-label">{d.name}</span>
+                    </div>
+                ))}
+            </div>
+        );
+    };
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [newName, setNewName] = useState('');
@@ -109,6 +241,8 @@ export default function Dashboard({ schools, currentPath, onNavigate, onAddFolde
     const [schoolTotalValue, setSchoolTotalValue] = useState('');
     const [schoolProductionCost, setSchoolProductionCost] = useState('');
     const [schoolEntryValueInput, setSchoolEntryValueInput] = useState('');
+    const [schoolPaymentTerms, setSchoolPaymentTerms] = useState('');
+    const [schoolPaymentHistory, setSchoolPaymentHistory] = useState('');
 
     // Granular Cost States
     const [costMalha, setCostMalha] = useState('');
@@ -126,6 +260,8 @@ export default function Dashboard({ schools, currentPath, onNavigate, onAddFolde
         setSchoolTotalValue(f.total_value || '');
         setSchoolProductionCost(f.production_cost || '');
         setSchoolEntryValueInput(f.entry_value || '');
+        setSchoolPaymentTerms(f.payment_terms || '');
+        setSchoolPaymentHistory(f.payment_history || '');
 
         // Initialize granular costs
         setCostMalha(f.cost_malha || '');
@@ -160,6 +296,8 @@ export default function Dashboard({ schools, currentPath, onNavigate, onAddFolde
             total_value: schoolTotalValue,
             production_cost: finalProductionCost,
             entry_value: schoolEntryValueInput,
+            payment_terms: schoolPaymentTerms,
+            payment_history: schoolPaymentHistory,
             // Save granular items as well
             cost_malha: costMalha,
             cost_talhacao: costTalhacao,
@@ -174,206 +312,160 @@ export default function Dashboard({ schools, currentPath, onNavigate, onAddFolde
     return (
         <div>
             {/* Header & Breadcrumbs */}
-            <div className="header">
-                <div>
-                    <div className="breadcrumb-nav">
-                        <span
-                            className="breadcrumb-item"
-                            onClick={() => onNavigate([])}
-                        >
-                            <Home size={14} /> Início
-                        </span>
-                        {parentSchool && (
-                            <>
-                                <ChevronRight size={14} style={{ opacity: 0.5 }} />
-                                <span className="breadcrumb-item" style={{ color: 'var(--primary-light)', background: 'rgba(99, 102, 241, 0.1)' }}>
-                                    {parentSchool.name}
-                                </span>
-                            </>
-                        )}
+            {/* Main Layout Toggling */}
+            {isEmbedded ? (
+                /* ANALYTICS VIEW (Visão Geral) */
+                <div className="analytics-view">
+                    <div style={{ marginBottom: '2.5rem' }}>
+                        <h1 className="page-title" style={{ fontSize: '2.5rem' }}>Painel Executivo</h1>
+                        <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem' }}>Monitoramento de saúde financeira e fluxo de produção.</p>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.5rem' }}>
-                        <h1 className="page-title">
-                            {currentLevel === 'root' ? 'Visão Geral' : parentSchool?.name}
-                        </h1>
-                        {currentLevel === 'school' && (
-                            <button className="btn btn-secondary" onClick={() => openEditSchoolModal(null)} style={{ padding: '6px 16px', fontSize: '0.8rem', height: 'auto', borderRadius: '20px' }}>
-                                <DollarSign size={14} /> Editar Financeiro
-                            </button>
-                        )}
-                    </div>
-                    <p style={{ color: 'var(--text-muted)', margin: '0.5rem 0 0 0', fontSize: '0.95rem' }}>
-                        {currentLevel === 'root'
-                            ? 'Gerencie todas as escolas e franquias em um só lugar.'
-                            : 'Gerenciamento de unidades desta escola.'}
-                    </p>
-                </div>
-                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                    {/* New Budget Button - Ensure visibility */}
-                    <button className="btn btn-secondary" onClick={() => setIsBudgetOpen(true)} style={{ whiteSpace: 'nowrap' }}>
-                        <Calculator size={20} />
-                        Orçamento
-                    </button>
-                    <button className="btn" onClick={() => setIsModalOpen(true)} style={{ whiteSpace: 'nowrap' }}>
-                        <Plus size={20} />
-                        {currentLevel === 'root' ? 'Nova Escola' : 'Nova Unidade'}
-                    </button>
-                </div>
-            </div>
 
-            {/* Stats Cards */}
-            <div className="stats-grid">
-                <div
-                    className="card stat-card"
-                    onClick={() => currentLevel === 'school' && openEditSchoolModal('total_value')}
-                    style={{ cursor: currentLevel === 'school' ? 'pointer' : 'default' }}
-                >
-                    <div className="stat-label">
-                        <DollarSign size={14} style={{ marginRight: '6px', color: '#818cf8' }} />
-                        Faturamento
-                        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            {isSchoolOverride && <span style={{ fontSize: '0.65rem', background: 'rgba(99, 102, 241, 0.2)', color: '#a5b4fc', padding: '2px 8px', borderRadius: '10px' }}>MANUAL</span>}
-                            {currentLevel === 'school' && (
-                                <Pencil
-                                    size={14}
-                                    className="edit-icon"
-                                    style={{ color: 'var(--text-muted)' }}
-                                />
-                            )}
+                    <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', marginBottom: '2.5rem' }}>
+                        <div className="card stat-card" style={{ borderLeft: '4px solid #6366f1' }}>
+                            <div className="stat-label"><DollarSign size={14} style={{ marginRight: '6px' }} /> FATURAMENTO</div>
+                            <div className="stat-value">R$ {totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                            <div className="stat-icon-bg"><DollarSign size={80} /></div>
+                        </div>
+                        <div className="card stat-card" style={{ borderLeft: '4px solid #ef4444' }}>
+                            <div className="stat-label"><TrendingUp size={14} style={{ marginRight: '6px' }} /> CUSTO TOTAL</div>
+                            <div className="stat-value">R$ {totalCost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                            <div className="stat-icon-bg"><TrendingUp size={80} /></div>
+                        </div>
+                        <div className="card stat-card" style={{ borderLeft: '4px solid #10b981' }}>
+                            <div className="stat-label"><Wallet size={14} style={{ marginRight: '6px' }} /> LUCRO LÍQUIDO</div>
+                            <div className="stat-value" style={{ color: '#10b981' }}>R$ {totalProfit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                            <div className="stat-icon-bg"><Wallet size={80} /></div>
+                        </div>
+                        <div className="card stat-card" style={{ borderLeft: '4px solid #ec4899' }}>
+                            <div className="stat-label"><Shirt size={14} style={{ marginRight: '6px' }} /> EM PRODUÇÃO</div>
+                            <div className="stat-value">{totalItemsCount.toLocaleString()} <span style={{ fontSize: '1rem', opacity: 0.6 }}>PÇS</span></div>
+                            <div className="stat-icon-bg"><Shirt size={80} /></div>
                         </div>
                     </div>
-                    <div className="stat-value">R$ {totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-                    <DollarSign className="stat-icon-bg" size={100} color="#818cf8" />
-                </div>
 
-                {currentLevel === 'school' && (
-                    <div
-                        className="card stat-card"
-                        onClick={() => openEditSchoolModal('entry_value')}
-                        style={{ borderTop: '4px solid #06b6d4', cursor: 'pointer' }}
-                    >
-                        <div className="stat-label">
-                            <DollarSign size={14} style={{ marginRight: '6px', color: '#22d3ee' }} />
-                            Valor de Entrada
-                            <Pencil
-                                size={14}
-                                className="edit-icon"
-                                style={{ marginLeft: 'auto', color: 'var(--text-muted)' }}
-                            />
+                    <div className="analytics-container">
+                        <div className="card chart-card">
+                            <h3 className="stat-label" style={{ marginBottom: '1.5rem', color: 'var(--text-main)' }}>DRE - COMPOSIÇÃO DE CUSTOS</h3>
+                            <DonutChart data={costData} />
                         </div>
-                        <div className="stat-value" style={{ background: 'none', color: '#67e8f9', webkitTextFillColor: 'initial' }}>
-                            R$ {totalEntryValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                        </div>
-                        <DollarSign className="stat-icon-bg" size={100} color="#06b6d4" />
-                    </div>
-                )}
-
-                <div
-                    className="card stat-card"
-                    onClick={() => currentLevel === 'school' && openEditSchoolModal('production_cost')}
-                    style={{ borderTop: '4px solid #ef4444', cursor: currentLevel === 'school' ? 'pointer' : 'default' }}
-                >
-                    <div className="stat-label">
-                        <Wallet size={14} style={{ marginRight: '6px', color: '#f87171' }} />
-                        Custos
-                        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            {isSchoolOverride && <span style={{ fontSize: '0.65rem', background: 'rgba(239, 68, 68, 0.2)', color: '#fca5a5', padding: '2px 8px', borderRadius: '10px' }}>MANUAL</span>}
-                            {currentLevel === 'school' && (
-                                <Pencil
-                                    size={14}
-                                    className="edit-icon"
-                                    style={{ color: 'var(--text-muted)' }}
-                                />
-                            )}
+                        <div className="card chart-card">
+                            <h3 className="stat-label" style={{ marginBottom: '1.5rem', color: 'var(--text-main)' }}>PRODUÇÃO POR ESCOLA (TOP 5)</h3>
+                            <BarChart data={productionBySchool} />
                         </div>
                     </div>
-                    <div className="stat-value" style={{ background: 'none', color: '#fca5a5', webkitTextFillColor: 'initial' }}>
-                        R$ {totalCost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </div>
-                    <Wallet className="stat-icon-bg" size={100} color="#ef4444" />
                 </div>
+            ) : (
+                /* MANAGEMENT VIEW (Minhas Escolas / Unidades) */
+                <div className="management-view">
+                    <div className="header" style={{ flexDirection: 'row', alignItems: 'flex-start', borderBottom: 'none', marginBottom: '2rem' }}>
+                        <div style={{ flex: 1 }}>
+                            <div className="breadcrumb-nav">
+                                <span className="breadcrumb-item" onClick={() => onNavigate([])}><Home size={14} /> Início</span>
+                                {parentSchool && (
+                                    <>
+                                        <ChevronRight size={14} style={{ opacity: 0.5 }} />
+                                        <span className="breadcrumb-item" style={{ color: 'var(--primary-light)', background: 'rgba(99, 102, 241, 0.1)' }}>{parentSchool.name}</span>
+                                    </>
+                                )}
+                            </div>
+                            <h1 className="page-title">{currentLevel === 'root' ? 'Gestão de Escolas' : parentSchool?.name}</h1>
+                            <p style={{ color: 'var(--text-muted)', marginTop: '0.4rem' }}>{currentLevel === 'root' ? 'Organize e gerencie suas instituições parceiras' : 'Unidades e faturamento desta escola.'}</p>
+                        </div>
+                        <div style={{ display: 'flex', gap: '0.8rem' }}>
+                            <button className="btn btn-secondary" onClick={() => setIsBudgetOpen(true)}><Calculator size={20} /> Orçamento</button>
+                            <button className="btn" onClick={() => setIsModalOpen(true)}><Plus size={20} /> {currentLevel === 'root' ? 'Nova Escola' : 'Nova Unidade'}</button>
+                        </div>
+                    </div>
 
-                <div className="card stat-card" style={{ borderTop: '4px solid #10b981' }}>
-                    <div className="stat-label">
-                        <TrendingUp size={14} style={{ marginRight: '6px', color: '#34d399' }} />
-                        Lucro Líquido
-                    </div>
-                    <div className="stat-value" style={{ background: 'none', color: '#6ee7b7', webkitTextFillColor: 'initial' }}>
-                        R$ {totalProfit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </div>
-                    <TrendingUp className="stat-icon-bg" size={100} color="#10b981" />
-                </div>
+                    {/* Stats mini-cards for school view */}
+                    {currentLevel === 'school' && (
+                        <div className="stats-grid" style={{ marginBottom: '2.5rem' }}>
+                            <div className="card stat-card" onClick={() => openEditSchoolModal('total_value')} style={{ cursor: 'pointer', borderLeft: '4px solid #6366f1' }}>
+                                <div className="stat-label">FATURAMENTO <Pencil size={12} style={{ marginLeft: 'auto' }} /></div>
+                                <div className="stat-value">R$ {totalRevenue.toLocaleString()}</div>
+                            </div>
+                            <div className="card stat-card" onClick={() => openEditSchoolModal('entry_value')} style={{ cursor: 'pointer', borderLeft: '4px solid #06b6d4' }}>
+                                <div className="stat-label">VALOR ENTRADA <Pencil size={12} style={{ marginLeft: 'auto' }} /></div>
+                                <div className="stat-value">R$ {totalEntryValue.toLocaleString()}</div>
+                            </div>
+                            <div className="card stat-card" onClick={() => openEditSchoolModal('production_cost')} style={{ cursor: 'pointer', borderLeft: '4px solid #ef4444' }}>
+                                <div className="stat-label">CUSTO <Pencil size={12} style={{ marginLeft: 'auto' }} /></div>
+                                <div className="stat-value">R$ {totalCost.toLocaleString()}</div>
+                            </div>
+                            <div className="card stat-card" style={{ borderLeft: '4px solid #ec4899' }}>
+                                <div className="stat-label">PRODUÇÃO</div>
+                                <div className="stat-value">{totalItemsCount} <span style={{ fontSize: '0.8rem' }}>PÇS</span></div>
+                            </div>
+                        </div>
+                    )}
 
-                <div className="card stat-card" style={{ borderTop: '4px solid #ec4899' }}>
-                    <div className="stat-label">
-                        <Shirt size={14} style={{ marginRight: '6px', color: '#f472b6' }} />
-                        Produção
-                    </div>
-                    <div className="stat-value" style={{ background: 'none', color: '#f9a8d4', webkitTextFillColor: 'initial' }}>
-                        {totalItemsCount} <span style={{ fontSize: '1rem', fontWeight: 500, color: '#fbcfe8' }}>peças</span>
-                    </div>
-                    <Shirt className="stat-icon-bg" size={100} color="#ec4899" />
-                </div>
-            </div>
+                    <h2 style={{ marginBottom: '1.5rem', fontSize: '1.1rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        {currentLevel === 'root' ? <Building2 size={18} /> : <Folder size={18} />}
+                        {currentLevel === 'root' ? 'Instituições Cadastradas' : 'Unidades desta Franquia'}
+                    </h2>
 
-            {/* Folder Grid */}
-            <h2 style={{ marginBottom: '1.5rem', fontSize: '1.25rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '10px' }}>
-                {currentLevel === 'root' ? <Building2 color="var(--primary)" /> : <Folder color="var(--accent)" />}
-                {currentLevel === 'root' ? 'Escolas Cadastradas' : 'Unidades da Franquia'}
-            </h2>
+                    {itemsToDisplay.length === 0 ? (
+                        <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '4rem', background: 'rgba(255,255,255,0.02)', borderRadius: '16px', border: '2px dashed rgba(255,255,255,0.1)' }}>
+                            <div style={{ background: 'rgba(255,255,255,0.05)', width: '64px', height: '64px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
+                                <Folder size={32} opacity={0.5} />
+                            </div>
+                            <p>Nenhuma {currentLevel === 'root' ? 'escola' : 'unidade'} encontrada.</p>
+                        </div>
+                    ) : (
+                        <div className="grid-folders">
+                            {itemsToDisplay.map((item) => (
+                                <div
+                                    key={item.id}
+                                    className="card folder"
+                                    onClick={() => onNavigate(currentLevel === 'root' ? [item.id] : [...currentPath, item.id])}
+                                >
+                                    <button
+                                        className="delete-btn"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (window.confirm('Tem certeza que deseja excluir?')) onDeleteFolder(item.id);
+                                        }}
+                                        title="Excluir"
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
 
-            {itemsToDisplay.length === 0 && (
-                <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '4rem', background: 'rgba(255,255,255,0.02)', borderRadius: '16px', border: '2px dashed rgba(255,255,255,0.1)' }}>
-                    <div style={{ background: 'rgba(255,255,255,0.05)', width: '64px', height: '64px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
-                        <Folder size={32} opacity={0.5} />
-                    </div>
-                    <p>Nenhuma {currentLevel === 'root' ? 'escola' : 'unidade'} encontrada.</p>
-                    <button className="btn btn-secondary" onClick={() => setIsModalOpen(true)} style={{ marginTop: '1rem' }}>
-                        Criar Agora
-                    </button>
+                                    {currentLevel === 'root' ?
+                                        <div style={{ padding: '12px', background: 'rgba(99, 102, 241, 0.1)', borderRadius: '12px', marginBottom: '1rem' }}>
+                                            <Building2 size={32} color="#818cf8" />
+                                        </div>
+                                        :
+                                        <div style={{ padding: '12px', background: 'rgba(236, 72, 153, 0.1)', borderRadius: '12px', marginBottom: '1rem' }}>
+                                            <Folder size={32} color="#f472b6" />
+                                        </div>
+                                    }
+
+                                    <div>
+                                        <div className="folder-title">{item.name}</div>
+                                        <div className="folder-meta">
+                                            {currentLevel === 'root'
+                                                ? <><Folder size={12} /> {item.franchises?.length || 0} unidades</>
+                                                : <><Shirt size={12} /> {calculateTotalItems(item.inventory)} peças</>
+                                            }
+                                        </div>
+                                        {currentLevel === 'root' && (
+                                            <div className="folder-stats">
+                                                <div className="mini-badge revenue" title="Faturamento">
+                                                    <DollarSign size={10} /> R$ {getSchoolFinancials(item).revenue.toLocaleString()}
+                                                </div>
+                                                <div className="mini-badge cost" title="Custos">
+                                                    <TrendingUp size={10} /> R$ {getSchoolFinancials(item).cost.toLocaleString()}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             )}
-
-            <div className="grid-folders">
-                {itemsToDisplay.map((item) => (
-                    <div
-                        key={item.id}
-                        className="card folder"
-                        onClick={() => onNavigate(currentLevel === 'root' ? [item.id] : [...currentPath, item.id])}
-                    >
-                        <button
-                            className="delete-btn"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                if (window.confirm('Tem certeza que deseja excluir?')) onDeleteFolder(item.id);
-                            }}
-                            title="Excluir"
-                        >
-                            <Trash2 size={16} />
-                        </button>
-
-                        {currentLevel === 'root' ?
-                            <div style={{ padding: '12px', background: 'rgba(99, 102, 241, 0.1)', borderRadius: '12px', marginBottom: '1rem' }}>
-                                <Building2 size={32} color="#818cf8" />
-                            </div>
-                            :
-                            <div style={{ padding: '12px', background: 'rgba(236, 72, 153, 0.1)', borderRadius: '12px', marginBottom: '1rem' }}>
-                                <Folder size={32} color="#f472b6" />
-                            </div>
-                        }
-
-                        <div>
-                            <div className="folder-title">{item.name}</div>
-                            <div className="folder-meta">
-                                {currentLevel === 'root'
-                                    ? <><Folder size={12} /> {item.franchises?.length || 0} unidades</>
-                                    : <><Shirt size={12} /> {calculateTotalItems(item.inventory)} peças</>
-                                }
-                            </div>
-                        </div>
-                    </div>
-                ))}
-            </div>
 
             {isModalOpen && (
                 <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
@@ -412,7 +504,7 @@ export default function Dashboard({ schools, currentPath, onNavigate, onAddFolde
                             {(editingField === null || editingField === 'total_value') && (
                                 <div style={{ marginBottom: '1rem' }}>
                                     <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, color: 'var(--text-muted)' }}>Faturamento Total (Contrato)</label>
-                                    <div style={{ position: 'relative' }}>
+                                    <div style={{ position: 'relative', marginBottom: '1rem' }}>
                                         <span style={{ position: 'absolute', left: '12px', top: '12px', color: '#64748b' }}>R$</span>
                                         <input
                                             type="number"
@@ -421,6 +513,28 @@ export default function Dashboard({ schools, currentPath, onNavigate, onAddFolde
                                             value={schoolTotalValue}
                                             onChange={e => setSchoolTotalValue(e.target.value)}
                                             placeholder="0.00"
+                                        />
+                                    </div>
+
+                                    <div style={{ marginBottom: '1rem' }}>
+                                        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, color: 'var(--text-muted)', fontSize: '0.9rem' }}>Acordo de Pagamento</label>
+                                        <textarea
+                                            className="input"
+                                            style={{ minHeight: '80px', resize: 'vertical', fontSize: '0.9rem' }}
+                                            value={schoolPaymentTerms}
+                                            onChange={e => setSchoolPaymentTerms(e.target.value)}
+                                            placeholder="Ex: 50% entrada + 2x boleto 30/60 dias"
+                                        />
+                                    </div>
+
+                                    <div style={{ marginBottom: '0.5rem' }}>
+                                        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, color: 'var(--text-muted)', fontSize: '0.9rem' }}>Histórico de Recebimento</label>
+                                        <textarea
+                                            className="input"
+                                            style={{ minHeight: '80px', resize: 'vertical', fontSize: '0.9rem' }}
+                                            value={schoolPaymentHistory}
+                                            onChange={e => setSchoolPaymentHistory(e.target.value)}
+                                            placeholder="Ex: 23/02 - R$ 500,00 via PIX"
                                         />
                                     </div>
                                 </div>
