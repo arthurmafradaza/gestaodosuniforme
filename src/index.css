@@ -385,3 +385,14 @@ body {
     opacity: 1;
   }
 }
+
+.edit-icon {
+  transition: all 0.2s ease;
+  opacity: 0.6;
+}
+
+.edit-icon:hover {
+  opacity: 1;
+  color: var(--primary) !important;
+  transform: scale(1.1);
+}
