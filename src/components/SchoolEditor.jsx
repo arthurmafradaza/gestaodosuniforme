@@ -1,10 +1,10 @@
 import React, { useState, useEffect, memo } from 'react';
-import { ArrowLeft, Save, Trash2, Edit2, Check, X, FileText, Shirt, DollarSign } from 'lucide-react';
+import { ArrowLeft, Save, Trash2, Edit2, Check, X, FileText, Shirt, DollarSign, Copy } from 'lucide-react';
 
 const PRODUCT_OPTIONS = ['Camisetas', 'Bermudas', 'Shorts Saia', 'Moletom', 'Calça'];
 
 // Optimized Product Row Component
-const ProductRow = memo(({ product, sizes, onRemove, onEditStart, editingItem, editValue, setEditValue, onEditSave, onEditCancel }) => {
+const ProductRow = memo(({ product, sizes, onRemove, onEditStart, editingItem, editValue, setEditValue, onEditSave, onEditCancel, onDuplicateProduct, onDuplicateItem, onRenameProductStart, editingProduct, productEditValue, setProductEditValue, onRenameProductSave, onRenameProductCancel, onRenameSizeStart, editingSizeLabel, sizeLabelEditValue, setSizeLabelEditValue, onRenameSizeSave, onRenameSizeCancel, onRemoveProduct }) => {
     // Sort sizes logically
     const sizeKeys = Object.keys(sizes).sort((a, b) => {
         const numA = parseInt(a);
@@ -14,6 +14,7 @@ const ProductRow = memo(({ product, sizes, onRemove, onEditStart, editingItem, e
     });
 
     const totalQty = Object.values(sizes).reduce((acc, qty) => acc + (parseInt(qty) || 0), 0);
+    const isEditingProduct = editingProduct === product;
 
     return (
         <div className="card" style={{
@@ -30,10 +31,53 @@ const ProductRow = memo(({ product, sizes, onRemove, onEditStart, editingItem, e
                 borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
                 paddingBottom: '0.75rem'
             }}>
-                <span style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <Shirt size={18} color="var(--primary)" />
-                    {product}
-                </span>
+                    {isEditingProduct ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <input
+                                autoFocus
+                                className="input"
+                                style={{ fontSize: '1rem', fontWeight: 700, padding: '4px 8px', width: '200px' }}
+                                value={productEditValue}
+                                onChange={e => setProductEditValue(e.target.value)}
+                                onKeyDown={e => {
+                                    if (e.key === 'Enter') onRenameProductSave();
+                                    if (e.key === 'Escape') onRenameProductCancel();
+                                }}
+                            />
+                            <button onClick={onRenameProductSave} style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--success)' }}><Check size={16} /></button>
+                            <button onClick={onRenameProductCancel} style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--danger)' }}><X size={16} /></button>
+                        </div>
+                    ) : (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--text-main)' }}>{product}</span>
+                            <div style={{ display: 'flex', gap: '4px' }}>
+                                <button
+                                    onClick={() => onRenameProductStart(product)}
+                                    style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', padding: 2 }}
+                                    title="Renomear Categoria"
+                                >
+                                    <Edit2 size={12} />
+                                </button>
+                                <button
+                                    onClick={() => onDuplicateProduct(product)}
+                                    style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--primary-light)', display: 'flex', padding: 2 }}
+                                    title="Duplicar Categoria"
+                                >
+                                    <Copy size={12} />
+                                </button>
+                                <button
+                                    onClick={() => onRemoveProduct(product)}
+                                    style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--danger)', display: 'flex', padding: 2 }}
+                                    title="Excluir Categoria"
+                                >
+                                    <Trash2 size={12} />
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
                 <span style={{ fontSize: '0.85rem', color: 'var(--primary-light)', fontWeight: 600, background: 'rgba(99, 102, 241, 0.1)', padding: '4px 10px', borderRadius: '12px' }}>
                     Total: {totalQty}
                 </span>
@@ -41,7 +85,8 @@ const ProductRow = memo(({ product, sizes, onRemove, onEditStart, editingItem, e
 
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
                 {sizeKeys.map(size => {
-                    const isEditing = editingItem?.product === product && editingItem?.size === size;
+                    const isEditingQty = editingItem?.product === product && editingItem?.size === size;
+                    const isEditingLabel = editingSizeLabel?.product === product && editingSizeLabel?.size === size;
 
                     return (
                         <div key={size} style={{
@@ -54,12 +99,37 @@ const ProductRow = memo(({ product, sizes, onRemove, onEditStart, editingItem, e
                             border: '1px solid rgba(255, 255, 255, 0.05)',
                             transition: 'all 0.2s'
                         }}>
-                            <span style={{ fontWeight: 600, color: 'var(--text-muted)', fontSize: '0.9rem' }}>{size}:</span>
-
-                            {isEditing ? (
+                            {isEditingLabel ? (
                                 <>
                                     <input
                                         autoFocus
+                                        className="input"
+                                        style={{ width: '40px', padding: '2px 4px', height: 'auto', fontSize: '0.8rem', textAlign: 'center' }}
+                                        value={sizeLabelEditValue}
+                                        onChange={e => setSizeLabelEditValue(e.target.value.toUpperCase())}
+                                        onKeyDown={e => {
+                                            if (e.key === 'Enter') onRenameSizeSave();
+                                            if (e.key === 'Escape') onRenameSizeCancel();
+                                        }}
+                                    />
+                                    <button onClick={onRenameSizeSave} style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--success)', display: 'flex' }}><Check size={12} /></button>
+                                </>
+                            ) : (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                    <span
+                                        style={{ fontWeight: 600, color: 'var(--text-muted)', fontSize: '0.9rem', cursor: 'pointer' }}
+                                        onClick={() => onRenameSizeStart(product, size)}
+                                        title="Clique para renomear o tamanho"
+                                    >
+                                        {size}:
+                                    </span>
+                                </div>
+                            )}
+
+                            {isEditingQty ? (
+                                <>
+                                    <input
+                                        autoFocus={!isEditingLabel}
                                         className="input"
                                         style={{ width: '50px', padding: '2px 6px', height: 'auto', fontSize: '0.9rem', textAlign: 'center' }}
                                         value={editValue}
@@ -84,9 +154,17 @@ const ProductRow = memo(({ product, sizes, onRemove, onEditStart, editingItem, e
                                             type="button"
                                             onClick={() => onEditStart(product, size, sizes[size])}
                                             style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', padding: 2 }}
-                                            title="Editar"
+                                            title="Editar Quantidade"
                                         >
                                             <Edit2 size={12} />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => onDuplicateItem(product, size)}
+                                            style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--primary-light)', display: 'flex', padding: 2 }}
+                                            title="Duplicar Item"
+                                        >
+                                            <Copy size={12} />
                                         </button>
                                         <button
                                             type="button"
@@ -124,6 +202,14 @@ export default function SchoolEditor({ school, franchise, onSave, onBack, onDele
     // Editing State
     const [editingItem, setEditingItem] = useState(null); // { product, size }
     const [editValue, setEditValue] = useState('');
+
+    // Renaming Product State
+    const [editingProduct, setEditingProduct] = useState(null); // product name
+    const [productEditValue, setProductEditValue] = useState('');
+
+    // Renaming Size State
+    const [editingSizeLabel, setEditingSizeLabel] = useState(null); // { product, size }
+    const [sizeLabelEditValue, setSizeLabelEditValue] = useState('');
 
     useEffect(() => {
         setFormData({
@@ -217,6 +303,130 @@ export default function SchoolEditor({ school, franchise, onSave, onBack, onDele
     const handleEditCancel = () => {
         setEditingItem(null);
         setEditValue('');
+    };
+
+    const handleRemoveProductCategory = (product) => {
+        if (!window.confirm(`Excluir toda a categoria "${product}"?`)) return;
+        setFormData(prev => {
+            const newInventory = { ...prev.inventory };
+            delete newInventory[product];
+            return { ...prev, inventory: newInventory };
+        });
+        setIsDirty(true);
+    };
+
+    // Duplication Logic
+    const handleDuplicateProduct = (productName) => {
+        setFormData(prev => {
+            const newInventory = { ...prev.inventory };
+            const originalData = newInventory[productName];
+            const baseName = productName.includes(' (Cópia)') ? productName.split(' (Cópia)')[0] : productName;
+            let copyName = `${baseName} (Cópia)`;
+            let counter = 1;
+
+            while (newInventory[copyName]) {
+                copyName = `${baseName} (Cópia ${counter})`;
+                counter++;
+            }
+
+            return {
+                ...prev,
+                inventory: {
+                    ...newInventory,
+                    [copyName]: { ...originalData }
+                }
+            };
+        });
+        setIsDirty(true);
+    };
+
+    const handleDuplicateSize = (product, size) => {
+        setFormData(prev => {
+            const newInventory = { ...prev.inventory };
+            const productInventory = { ...newInventory[product] };
+            const qty = productInventory[size];
+            const baseSize = size.includes(' (Cópia)') ? size.split(' (Cópia)')[0] : size;
+            let copySize = `${baseSize} (Cópia)`;
+            let counter = 1;
+
+            while (productInventory[copySize]) {
+                copySize = `${baseSize} (Cópia ${counter})`;
+                counter++;
+            }
+
+            productInventory[copySize] = qty;
+            newInventory[product] = productInventory;
+
+            return { ...prev, inventory: newInventory };
+        });
+        setIsDirty(true);
+    };
+
+    // Renaming Categories
+    const handleRenameProductStart = (name) => {
+        setEditingProduct(name);
+        setProductEditValue(name);
+    };
+
+    const handleRenameProductSave = () => {
+        if (!editingProduct || !productEditValue || editingProduct === productEditValue) {
+            setEditingProduct(null);
+            return;
+        }
+
+        setFormData(prev => {
+            const newInventory = { ...prev.inventory };
+            const data = newInventory[editingProduct];
+            delete newInventory[editingProduct];
+            newInventory[productEditValue] = data;
+            return { ...prev, inventory: newInventory };
+        });
+
+        setIsDirty(true);
+        setEditingProduct(null);
+    };
+
+    const handleRenameProductCancel = () => {
+        setEditingProduct(null);
+    };
+
+    // Renaming Size Labels
+    const handleRenameSizeStart = (product, size) => {
+        setEditingSizeLabel({ product, size });
+        setSizeLabelEditValue(size);
+    };
+
+    const handleRenameSizeSave = () => {
+        if (!editingSizeLabel || !sizeLabelEditValue) return;
+        const { product, size } = editingSizeLabel;
+        if (size === sizeLabelEditValue) {
+            setEditingSizeLabel(null);
+            return;
+        }
+
+        setFormData(prev => {
+            const newInventory = { ...prev.inventory };
+            const productInventory = { ...newInventory[product] };
+            const qty = productInventory[size];
+
+            if (productInventory[sizeLabelEditValue]) {
+                alert("Este tamanho já existe neste produto.");
+                return prev;
+            }
+
+            delete productInventory[size];
+            productInventory[sizeLabelEditValue] = qty;
+            newInventory[product] = productInventory;
+
+            return { ...prev, inventory: newInventory };
+        });
+
+        setIsDirty(true);
+        setEditingSizeLabel(null);
+    };
+
+    const handleRenameSizeCancel = () => {
+        setEditingSizeLabel(null);
     };
 
     const handleFinancialChange = (e) => {
@@ -520,6 +730,21 @@ export default function SchoolEditor({ school, franchise, onSave, onBack, onDele
                                     setEditValue={setEditValue}
                                     onEditSave={handleEditSave}
                                     onEditCancel={handleEditCancel}
+                                    onDuplicateProduct={handleDuplicateProduct}
+                                    onDuplicateItem={handleDuplicateSize}
+                                    onRenameProductStart={handleRenameProductStart}
+                                    editingProduct={editingProduct}
+                                    productEditValue={productEditValue}
+                                    setProductEditValue={setProductEditValue}
+                                    onRenameProductSave={handleRenameProductSave}
+                                    onRenameProductCancel={handleRenameProductCancel}
+                                    onRenameSizeStart={handleRenameSizeStart}
+                                    editingSizeLabel={editingSizeLabel}
+                                    sizeLabelEditValue={sizeLabelEditValue}
+                                    setSizeLabelEditValue={setSizeLabelEditValue}
+                                    onRenameSizeSave={handleRenameSizeSave}
+                                    onRenameSizeCancel={handleRenameSizeCancel}
+                                    onRemoveProduct={handleRemoveProductCategory}
                                 />
                             ))}
                         </div>

@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Plus, Folder, DollarSign, TrendingUp, Shirt, ChevronRight, Home, Building2, Trash2, Wallet, Calculator, Pencil } from 'lucide-react';
+import { Plus, Folder, DollarSign, TrendingUp, Shirt, ChevronRight, Home, Building2, Trash2, Wallet, Calculator, Pencil, Check, X } from 'lucide-react';
 import BudgetCalculator from './BudgetCalculator';
 
-export default function Dashboard({ schools, currentPath, onNavigate, onAddFolder, onDeleteFolder, onUpdateSchool, isEmbedded = false }) {
+export default function Dashboard({ schools, currentPath, onNavigate, onAddFolder, onDeleteFolder, onUpdateSchool, onRenameSchool, isEmbedded = false }) {
     // ... existing logic ...
 
     // [New State]
@@ -252,6 +252,10 @@ export default function Dashboard({ schools, currentPath, onNavigate, onAddFolde
     const [costEstampa, setCostEstampa] = useState('');
     const [costVariavel, setCostVariavel] = useState('');
 
+    // School Renaming State
+    const [isRenamingSchool, setIsRenamingSchool] = useState(false);
+    const [schoolNameEditValue, setSchoolNameEditValue] = useState('');
+
     const openEditSchoolModal = (field = null) => {
         if (!parentSchool) return;
         setEditingField(field);
@@ -307,6 +311,13 @@ export default function Dashboard({ schools, currentPath, onNavigate, onAddFolde
             cost_variavel: costVariavel
         });
         setIsEditSchoolModalOpen(false);
+    };
+
+    const handleSaveSchoolName = (e) => {
+        e.preventDefault();
+        if (!schoolNameEditValue || !parentSchool) return;
+        onRenameSchool(parentSchool.id, schoolNameEditValue);
+        setIsRenamingSchool(false);
     };
 
     return (
@@ -369,7 +380,37 @@ export default function Dashboard({ schools, currentPath, onNavigate, onAddFolde
                                     </>
                                 )}
                             </div>
-                            <h1 className="page-title">{currentLevel === 'root' ? 'Gestão de Escolas' : parentSchool?.name}</h1>
+
+                            {currentLevel === 'school' && isRenamingSchool ? (
+                                <form onSubmit={handleSaveSchoolName} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '0.5rem' }}>
+                                    <input
+                                        autoFocus
+                                        className="input"
+                                        style={{ fontSize: '1.5rem', fontWeight: 700, padding: '4px 12px', width: '300px' }}
+                                        value={schoolNameEditValue}
+                                        onChange={e => setSchoolNameEditValue(e.target.value)}
+                                        onKeyDown={e => e.key === 'Escape' && setIsRenamingSchool(false)}
+                                    />
+                                    <button type="submit" className="btn-icon" style={{ color: 'var(--success)' }}><Check size={20} /></button>
+                                    <button type="button" className="btn-icon" style={{ color: 'var(--danger)' }} onClick={() => setIsRenamingSchool(false)}><X size={20} /></button>
+                                </form>
+                            ) : (
+                                <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                    {currentLevel === 'root' ? 'Gestão de Escolas' : parentSchool?.name}
+                                    {currentLevel === 'school' && (
+                                        <button
+                                            onClick={() => {
+                                                setIsRenamingSchool(true);
+                                                setSchoolNameEditValue(parentSchool.name);
+                                            }}
+                                            style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex' }}
+                                            title="Renomear Escola"
+                                        >
+                                            <Pencil size={18} />
+                                        </button>
+                                    )}
+                                </h1>
+                            )}
                             <p style={{ color: 'var(--text-muted)', marginTop: '0.4rem' }}>{currentLevel === 'root' ? 'Organize e gerencie suas instituições parceiras' : 'Unidades e faturamento desta escola.'}</p>
                         </div>
                         <div style={{ display: 'flex', gap: '0.8rem' }}>

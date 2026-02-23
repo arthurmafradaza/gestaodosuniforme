@@ -147,6 +147,21 @@ export default function App() {
         }
     };
 
+    const handleRenameSchool = async (schoolId, newName) => {
+        try {
+            if (!supabase) return;
+            const { error } = await supabase
+                .from('schools')
+                .update({ name: newName })
+                .eq('id', schoolId);
+            if (error) throw error;
+            fetchSchools();
+        } catch (err) {
+            console.error("Error renaming school:", err);
+            alert("Erro ao renomear escola.");
+        }
+    };
+
     const handleDelete = async (id) => {
         if (!window.confirm("Tem certeza? Essa ação não pode ser desfeita.")) return;
         try {
@@ -179,6 +194,22 @@ export default function App() {
         }
     };
 
+    const handleDeleteTransaction = async (transactionId) => {
+        if (!window.confirm("Deseja realmente excluir esta movimentação?")) return;
+        try {
+            if (!supabase) return;
+            const { error } = await supabase
+                .from('investment_transactions')
+                .delete()
+                .eq('id', transactionId);
+            if (error) throw error;
+            fetchTransactions();
+        } catch (err) {
+            console.error("Error deleting transaction:", err);
+            alert("Erro ao excluir movimentação.");
+        }
+    };
+
     if (loading) return <div style={{ display: 'flex', justifyContent: 'center', marginTop: '50px' }}>Carregando...</div>;
 
     const renderContent = () => {
@@ -207,6 +238,7 @@ export default function App() {
                     onAddFolder={handleAddFolder}
                     onDeleteFolder={handleDelete}
                     onUpdateSchool={handleUpdateSchool}
+                    onRenameSchool={handleRenameSchool}
                     isEmbedded={true}
                 />;
             case 'schools':
@@ -217,6 +249,7 @@ export default function App() {
                     onAddFolder={handleAddFolder}
                     onDeleteFolder={handleDelete}
                     onUpdateSchool={handleUpdateSchool}
+                    onRenameSchool={handleRenameSchool}
                 />;
             case 'investment':
                 return (
@@ -224,6 +257,7 @@ export default function App() {
                         transactions={transactions}
                         schools={schools}
                         onAddTransaction={handleAddTransaction}
+                        onDeleteTransaction={handleDeleteTransaction}
                     />
                 );
             default:

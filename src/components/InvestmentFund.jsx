@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { TrendingUp, ArrowUpRight, ArrowDownRight, Building2, Calendar, Plus, X } from 'lucide-react';
+import { TrendingUp, ArrowUpRight, ArrowDownRight, Building2, Calendar, Plus, X, Trash2 } from 'lucide-react';
 
-export default function InvestmentFund({ transactions, schools, onAddTransaction }) {
+export default function InvestmentFund({ transactions, schools, onAddTransaction, onDeleteTransaction }) {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [type, setType] = useState('in'); // 'in' or 'out'
     const [amount, setAmount] = useState('');
@@ -105,6 +105,7 @@ export default function InvestmentFund({ transactions, schools, onAddTransaction
                                     <th style={{ textAlign: 'left', padding: '1rem' }}>Descrição</th>
                                     <th style={{ textAlign: 'left', padding: '1rem' }}>Origem/Destino</th>
                                     <th style={{ textAlign: 'right', padding: '1rem' }}>Valor</th>
+                                    <th style={{ textAlign: 'right', padding: '1rem' }}>Ações</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -129,6 +130,16 @@ export default function InvestmentFund({ transactions, schools, onAddTransaction
                                         </td>
                                         <td style={{ padding: '1rem', textAlign: 'right', fontWeight: 700, color: t.type === 'in' ? '#10b981' : '#ef4444' }}>
                                             {t.type === 'in' ? '+' : '-'} R$ {parseFloat(t.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                        </td>
+                                        <td style={{ padding: '1rem', textAlign: 'right' }}>
+                                            <button
+                                                className="btn-icon"
+                                                onClick={() => onDeleteTransaction(t.id)}
+                                                style={{ color: '#ef4444', background: 'rgba(239, 68, 68, 0.1)', padding: '6px' }}
+                                                title="Excluir movimentação"
+                                            >
+                                                <Trash2 size={14} />
+                                            </button>
                                         </td>
                                     </tr>
                                 ))}
