@@ -496,12 +496,21 @@ export default function SchoolEditor({ school, franchise, onSave, onBack, onDele
             return block + '\n';
         };
 
-        PRODUCT_OPTIONS.forEach(prod => {
-            let colorField = null;
-            if (prod === 'Camisetas') colorField = 'tshirt_color';
-            if (prod === 'Bermudas') colorField = 'shorts_color';
-            if (prod === 'Shorts Saia') colorField = 'skort_color';
+        // Iterate over ALL inventory keys (including custom/duplicated categories)
+        // First output the standard products in order, then any extras
+        const inventoryKeys = Object.keys(formData.inventory || {});
+        const standardOrder = PRODUCT_OPTIONS.filter(p => inventoryKeys.includes(p));
+        const extras = inventoryKeys.filter(k => !PRODUCT_OPTIONS.includes(k));
+        const ordenedKeys = [...standardOrder, ...extras];
 
+        const COLOR_MAP = {
+            'Camisetas': 'tshirt_color',
+            'Bermudas': 'shorts_color',
+            'Shorts Saia': 'skort_color',
+        };
+
+        ordenedKeys.forEach(prod => {
+            const colorField = COLOR_MAP[prod] || null;
             const block = formatBlock(prod, colorField);
             if (block) text += block;
         });
