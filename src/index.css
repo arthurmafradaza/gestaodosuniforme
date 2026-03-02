@@ -645,3 +645,130 @@ body {
   font-weight: 700;
   color: var(--text-main);
 }
+
+/* Print Styles */
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+    margin: 0;
+    padding: 0;
+  }
+
+  .sidebar,
+  .header,
+  .stats-grid,
+  .grid-folders,
+  .analytics-view,
+  .breadcrumb-nav,
+  .delete-btn,
+  .modal-overlay,
+  .btn {
+    display: none !important;
+  }
+
+  .main-content {
+    padding: 0 !important;
+    max-width: none !important;
+    margin: 0 !important;
+    width: 100% !important;
+  }
+
+  .printable-area {
+    display: block !important;
+    background: white !important;
+    color: black !important;
+  }
+
+  .printable-content {
+    padding: 20mm;
+    color: black !important;
+  }
+
+  .print-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-bottom: 2px solid black;
+    margin-bottom: 10mm;
+    padding-bottom: 5mm;
+  }
+
+  .print-header h1 {
+    margin: 0;
+    font-size: 18pt;
+  }
+
+  .print-header h2 {
+    margin: 5px 0 0 0;
+    font-size: 14pt;
+    color: #333;
+  }
+
+  .print-date {
+    font-size: 10pt;
+  }
+
+  .print-section {
+    margin-bottom: 10mm;
+    page-break-inside: avoid;
+  }
+
+  .unit-name {
+    background: #f0f0f0;
+    padding: 3mm;
+    margin-bottom: 3mm;
+    border-left: 5px solid black;
+    font-size: 12pt;
+  }
+
+  .print-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 5mm;
+  }
+
+  .print-table th,
+  .print-table td {
+    border: 1px solid #ccc;
+    padding: 3mm;
+    text-align: left;
+    font-size: 10pt;
+  }
+
+  .print-table th {
+    background: #f8f8f8;
+  }
+
+  .qty-cell {
+    text-align: center !important;
+    width: 20mm;
+  }
+
+  .sizes-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5mm;
+  }
+
+  .size-item {
+    font-size: 9pt;
+  }
+
+  .print-footer {
+    position: fixed;
+    bottom: 10mm;
+    left: 20mm;
+    right: 20mm;
+    text-align: center;
+    font-size: 8pt;
+    color: #666;
+    border-top: 1px solid #eee;
+    padding-top: 3mm;
+  }
+}
+
+/* Hide printable area by default on screen */
+.printable-area {
+  display: none;
+}

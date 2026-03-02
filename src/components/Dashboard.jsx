@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Plus, Folder, DollarSign, TrendingUp, Shirt, ChevronRight, Home, Building2, Trash2, Wallet, Calculator, Pencil, Check, X } from 'lucide-react';
+import { Plus, Folder, DollarSign, TrendingUp, Shirt, ChevronRight, Home, Building2, Trash2, Wallet, Calculator, Pencil, Check, X, FileText } from 'lucide-react';
 import BudgetCalculator from './BudgetCalculator';
+import PrintableInventory from './PrintableInventory';
 
 export default function Dashboard({ schools, currentPath, onNavigate, onAddFolder, onDeleteFolder, onUpdateSchool, onRenameSchool, isEmbedded = false }) {
     // ... existing logic ...
@@ -320,6 +321,10 @@ export default function Dashboard({ schools, currentPath, onNavigate, onAddFolde
         setIsRenamingSchool(false);
     };
 
+    const handlePrint = () => {
+        window.print();
+    };
+
     return (
         <div>
             {/* Header & Breadcrumbs */}
@@ -414,8 +419,13 @@ export default function Dashboard({ schools, currentPath, onNavigate, onAddFolde
                             <p style={{ color: 'var(--text-muted)', marginTop: '0.4rem' }}>{currentLevel === 'root' ? 'Organize e gerencie suas instituições parceiras' : 'Unidades e faturamento desta escola.'}</p>
                         </div>
                         <div style={{ display: 'flex', gap: '0.8rem' }}>
+                            {currentLevel === 'school' && (
+                                <button className="btn btn-secondary" onClick={handlePrint}>
+                                    <FileText size={20} /> Gerar PDF
+                                </button>
+                            )}
                             <button className="btn btn-secondary" onClick={() => setIsBudgetOpen(true)}><Calculator size={20} /> Orçamento</button>
-                            <button className="btn" onClick={() => setIsModalOpen(true)}><Plus size={20} /> {currentLevel === 'root' ? 'Nova Escola' : 'Nova Unidade'}</button>
+                            <button className="btn" onClick={() => setIsModalOpen(true)}><Plus size={20} /> {currentLevel === 'root' ? 'Nova Escola' : 'Nova Unitade'}</button>
                         </div>
                     </div>
 
@@ -644,6 +654,14 @@ export default function Dashboard({ schools, currentPath, onNavigate, onAddFolde
             {isBudgetOpen && (
                 <BudgetCalculator onClose={() => setIsBudgetOpen(false)} />
             )}
+
+            {/* Printable area for PDF generation */}
+            <div className="printable-area">
+                <PrintableInventory
+                    school={parentSchool}
+                    franchises={parentSchool?.franchises || []}
+                />
+            </div>
         </div>
     );
 }
