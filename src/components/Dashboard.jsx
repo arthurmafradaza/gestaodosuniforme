@@ -500,7 +500,7 @@ export default function Dashboard({ schools, currentPath, onNavigate, onAddFolde
                                                 : <><Shirt size={12} /> {calculateTotalItems(item.inventory)} peças</>
                                             }
                                         </div>
-                                        {currentLevel === 'root' && (
+                                        {currentLevel === 'root' ? (
                                             <div className="folder-stats">
                                                 <div className="mini-badge revenue" title="Faturamento">
                                                     <DollarSign size={10} /> R$ {getSchoolFinancials(item).revenue.toLocaleString()}
@@ -508,6 +508,19 @@ export default function Dashboard({ schools, currentPath, onNavigate, onAddFolde
                                                 <div className="mini-badge cost" title="Custos">
                                                     <TrendingUp size={10} /> R$ {getSchoolFinancials(item).cost.toLocaleString()}
                                                 </div>
+                                            </div>
+                                        ) : (
+                                            <div className="folder-stats">
+                                                {item.financials?.picked_up && (
+                                                    <div className="mini-badge" style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+                                                        <Check size={10} /> {item.financials?.delivered ? 'Pegou' : 'Pegamos'}
+                                                    </div>
+                                                )}
+                                                {item.financials?.delivered && (
+                                                    <div className="mini-badge" style={{ background: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
+                                                        <Check size={10} /> Entregue
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
                                     </div>

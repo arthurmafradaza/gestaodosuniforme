@@ -760,8 +760,67 @@ export default function SchoolEditor({ school, franchise, onSave, onBack, onDele
                     </div>
                 </div>
 
-                {/* RIGHT COLUMN: FINANCIALS */}
+                {/* RIGHT COLUMN: FINANCIALS & STATUS */}
                 <div>
+                    {/* Status Card */}
+                    <div className="card" style={{ marginBottom: '2rem', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+                        <h3 style={{
+                            fontSize: '1.25rem',
+                            marginBottom: '1rem',
+                            paddingBottom: '1rem',
+                            borderBottom: '1px solid rgba(255,255,255,0.1)',
+                            color: '#10b981',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px'
+                        }}>
+                            <Check size={20} /> Status do Pedido
+                        </h3>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            <button
+                                type="button"
+                                className={`btn ${formData.financials.picked_up ? 'btn-success' : 'btn-secondary'}`}
+                                onClick={() => {
+                                    setFormData(prev => ({
+                                        ...prev,
+                                        financials: { ...prev.financials, picked_up: !prev.financials.picked_up }
+                                    }));
+                                    setIsDirty(true);
+                                }}
+                                style={{
+                                    width: '100%',
+                                    justifyContent: 'center',
+                                    background: formData.financials.picked_up ? 'rgba(16, 185, 129, 0.2)' : '',
+                                    borderColor: formData.financials.picked_up ? '#10b981' : '',
+                                    color: formData.financials.picked_up ? '#10b981' : ''
+                                }}
+                            >
+                                <Check size={18} style={{ opacity: formData.financials.picked_up ? 1 : 0.5 }} /> Já pegamos o pedido
+                            </button>
+
+                            <button
+                                type="button"
+                                className={`btn ${formData.financials.delivered ? 'btn-success' : 'btn-secondary'}`}
+                                onClick={() => {
+                                    setFormData(prev => ({
+                                        ...prev,
+                                        financials: { ...prev.financials, delivered: !prev.financials.delivered }
+                                    }));
+                                    setIsDirty(true);
+                                }}
+                                style={{
+                                    width: '100%',
+                                    justifyContent: 'center',
+                                    background: formData.financials.delivered ? 'rgba(56, 189, 248, 0.2)' : '',
+                                    borderColor: formData.financials.delivered ? '#38bdf8' : '',
+                                    color: formData.financials.delivered ? '#38bdf8' : ''
+                                }}
+                            >
+                                <Check size={18} style={{ opacity: formData.financials.delivered ? 1 : 0.5 }} /> Pedido Entregue
+                            </button>
+                        </div>
+                    </div>
+
                     <div className="card" style={{ position: 'sticky', top: '2rem', border: '1px solid rgba(236, 72, 153, 0.2)' }}>
                         <h3 style={{
                             fontSize: '1.25rem',
