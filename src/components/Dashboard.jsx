@@ -511,6 +511,11 @@ export default function Dashboard({ schools, currentPath, onNavigate, onAddFolde
                                             </div>
                                         ) : (
                                             <div className="folder-stats">
+                                                {item.financials?.fully_paid && (
+                                                    <div className="mini-badge" style={{ background: 'rgba(74, 222, 128, 0.1)', color: '#4ade80', border: '1px solid rgba(74, 222, 128, 0.2)' }}>
+                                                        <DollarSign size={10} /> 100% Pago
+                                                    </div>
+                                                )}
                                                 {item.financials?.picked_up && (
                                                     <div className="mini-badge" style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
                                                         <Check size={10} /> {item.financials?.delivered ? 'Pegou' : 'Pegamos'}

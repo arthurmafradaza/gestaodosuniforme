@@ -818,6 +818,27 @@ export default function SchoolEditor({ school, franchise, onSave, onBack, onDele
                             >
                                 <Check size={18} style={{ opacity: formData.financials.delivered ? 1 : 0.5 }} /> Pedido Entregue
                             </button>
+
+                            <button
+                                type="button"
+                                className={`btn ${formData.financials.fully_paid ? 'btn-success' : 'btn-secondary'}`}
+                                onClick={() => {
+                                    setFormData(prev => ({
+                                        ...prev,
+                                        financials: { ...prev.financials, fully_paid: !prev.financials.fully_paid }
+                                    }));
+                                    setIsDirty(true);
+                                }}
+                                style={{
+                                    width: '100%',
+                                    justifyContent: 'center',
+                                    background: formData.financials.fully_paid ? 'rgba(74, 222, 128, 0.2)' : '',
+                                    borderColor: formData.financials.fully_paid ? '#4ade80' : '',
+                                    color: formData.financials.fully_paid ? '#4ade80' : ''
+                                }}
+                            >
+                                <DollarSign size={18} style={{ opacity: formData.financials.fully_paid ? 1 : 0.5 }} /> 100% Pago
+                            </button>
                         </div>
                     </div>
 
