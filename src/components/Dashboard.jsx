@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Folder, DollarSign, TrendingUp, Shirt, ChevronRight, Home, Building2, Trash2, Wallet, Calculator, Pencil, Check, X, FileText } from 'lucide-react';
+import { Plus, Folder, DollarSign, TrendingUp, Shirt, ChevronRight, Home, Building2, Trash2, Wallet, Calculator, Pencil, Check, X, FileText, Tag, Zap } from 'lucide-react';
 import BudgetCalculator from './BudgetCalculator';
 import PrintableInventory from './PrintableInventory';
 
@@ -253,6 +253,10 @@ export default function Dashboard({ schools, currentPath, onNavigate, onAddFolde
     const [costEstampa, setCostEstampa] = useState('');
     const [costVariavel, setCostVariavel] = useState('');
 
+    // Pricing Calculator State
+    const [newRuleName, setNewRuleName] = useState('');
+    const [newRulePrice, setNewRulePrice] = useState('');
+
     // School Renaming State
     const [isRenamingSchool, setIsRenamingSchool] = useState(false);
     const [schoolNameEditValue, setSchoolNameEditValue] = useState('');
@@ -298,12 +302,12 @@ export default function Dashboard({ schools, currentPath, onNavigate, onAddFolde
             : schoolProductionCost;
 
         onUpdateSchool(parentSchool.id, {
+            ...(parentSchool.financials || {}),
             total_value: schoolTotalValue,
             production_cost: finalProductionCost,
             entry_value: schoolEntryValueInput,
             payment_terms: schoolPaymentTerms,
             payment_history: schoolPaymentHistory,
-            // Save granular items as well
             cost_malha: costMalha,
             cost_talhacao: costTalhacao,
             cost_costura: costCostura,
@@ -324,6 +328,45 @@ export default function Dashboard({ schools, currentPath, onNavigate, onAddFolde
     const handlePrint = () => {
         window.print();
     };
+
+    // Pricing Calculator Logic
+    const pricingRules = parentSchool?.financials?.pricing_rules || [];
+
+    const savePricingRules = (rules) => {
+        if (!parentSchool) return;
+        onUpdateSchool(parentSchool.id, {
+            ...(parentSchool.financials || {}),
+            pricing_rules: rules
+        });
+    };
+
+    const getQtyForRule = (ruleName) => {
+        let total = 0;
+        (parentSchool?.franchises || []).forEach(franchise => {
+            const inv = franchise.inventory || {};
+            Object.entries(inv).forEach(([productName, sizes]) => {
+                if (productName.toLowerCase().includes(ruleName.toLowerCase())) {
+                    total += Object.values(sizes).reduce((a, b) => a + b, 0);
+                }
+            });
+        });
+        return total;
+    };
+
+    const handleAddPricingRule = (e) => {
+        e.preventDefault();
+        if (!newRuleName || !newRulePrice) return;
+        const rule = { id: Date.now(), name: newRuleName, price: parseFloat(newRulePrice) };
+        savePricingRules([...pricingRules, rule]);
+        setNewRuleName('');
+        setNewRulePrice('');
+    };
+
+    const handleRemovePricingRule = (id) => {
+        savePricingRules(pricingRules.filter(r => r.id !== id));
+    };
+
+    const pricingTotal = pricingRules.reduce((acc, rule) => acc + getQtyForRule(rule.name) * rule.price, 0);
 
     return (
         <div>
@@ -508,6 +551,95 @@ export default function Dashboard({ schools, currentPath, onNavigate, onAddFolde
                                 <div className="stat-label">PRODUÇÃO</div>
                                 <div className="stat-value">{totalItemsCount} <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 500 }}>pçs</span></div>
                             </div>
+                        </div>
+                    )}
+
+                    {/* Pricing Calculator */}
+                    {currentLevel === 'school' && (
+                        <div className="card" style={{ marginBottom: '2rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1.25rem', paddingBottom: '1rem', borderBottom: '1px solid var(--border-subtle)' }}>
+                                <div style={{ padding: '6px', background: 'rgba(0,113,227,0.08)', borderRadius: '8px' }}>
+                                    <Zap size={15} color="var(--primary)" />
+                                </div>
+                                <div>
+                                    <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)' }}>Calculadora de Preço</div>
+                                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Calcule o faturamento estimado com base na produção atual</div>
+                                </div>
+                            </div>
+
+                            {pricingRules.length > 0 && (
+                                <div style={{ marginBottom: '1.25rem' }}>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+                                        <thead>
+                                            <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                                                <th style={{ textAlign: 'left', padding: '0.5rem 0.75rem', fontWeight: 600, color: 'var(--text-muted)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Item</th>
+                                                <th style={{ textAlign: 'right', padding: '0.5rem 0.75rem', fontWeight: 600, color: 'var(--text-muted)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Qtd</th>
+                                                <th style={{ textAlign: 'right', padding: '0.5rem 0.75rem', fontWeight: 600, color: 'var(--text-muted)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Unitário</th>
+                                                <th style={{ textAlign: 'right', padding: '0.5rem 0.75rem', fontWeight: 600, color: 'var(--text-muted)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Subtotal</th>
+                                                <th style={{ width: '40px' }}></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {pricingRules.map(rule => {
+                                                const qty = getQtyForRule(rule.name);
+                                                const subtotal = qty * rule.price;
+                                                return (
+                                                    <tr key={rule.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                                                        <td style={{ padding: '0.6rem 0.75rem' }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                <Tag size={12} color="var(--text-muted)" />
+                                                                <span style={{ fontWeight: 500 }}>{rule.name}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td style={{ padding: '0.6rem 0.75rem', textAlign: 'right', color: qty === 0 ? 'var(--text-tertiary)' : 'var(--text-main)', fontWeight: qty === 0 ? 400 : 600 }}>{qty}</td>
+                                                        <td style={{ padding: '0.6rem 0.75rem', textAlign: 'right', color: 'var(--text-muted)' }}>R$ {rule.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                                                        <td style={{ padding: '0.6rem 0.75rem', textAlign: 'right', fontWeight: 700, color: subtotal === 0 ? 'var(--text-tertiary)' : 'var(--success-text)' }}>R$ {subtotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                                                        <td style={{ padding: '0.6rem 0.5rem', textAlign: 'center' }}>
+                                                            <button onClick={() => handleRemovePricingRule(rule.id)} style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', display: 'flex', padding: '2px' }}>
+                                                                <X size={14} />
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '2px solid var(--border-color)' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)' }}>FATURAMENTO ESTIMADO</span>
+                                            <span style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--primary)' }}>R$ {pricingTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            <form onSubmit={handleAddPricingRule} style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end' }}>
+                                <div style={{ flex: 2 }}>
+                                    <label style={{ display: 'block', marginBottom: '0.3rem', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Item</label>
+                                    <input
+                                        className="input"
+                                        value={newRuleName}
+                                        onChange={e => setNewRuleName(e.target.value)}
+                                        placeholder="Ex: Camiseta Manga Longa"
+                                    />
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                    <label style={{ display: 'block', marginBottom: '0.3rem', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Valor unitário</label>
+                                    <div style={{ position: 'relative' }}>
+                                        <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontSize: '0.85rem', pointerEvents: 'none' }}>R$</span>
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            className="input"
+                                            style={{ paddingLeft: '2.5rem' }}
+                                            value={newRulePrice}
+                                            onChange={e => setNewRulePrice(e.target.value)}
+                                            placeholder="0.00"
+                                        />
+                                    </div>
+                                </div>
+                                <button type="submit" className="btn" style={{ flexShrink: 0 }}><Plus size={16} /> Adicionar</button>
+                            </form>
                         </div>
                     )}
 
